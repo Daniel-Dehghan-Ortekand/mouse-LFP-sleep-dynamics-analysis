@@ -1,0 +1,298 @@
+%% Analyze neuronal firing-rate modulation around global and local slow oscillations (SO)
+% This script calculates the modulation index and peri-event firing rates
+% of thalamic neurons around global and local SO events, and compares their
+% firing patterns using raster plots, mean firing rates, and z-scored activity.
+
+clc 
+clear 
+close all
+tic
+%%
+paths = dir('*/firing rate SO*');
+[nRawspath, ~] = size(paths);
+
+    sessionNum =nRawspath;
+    MeanModuIndexbig = zeros(1,sessionNum) ;
+    meanFRBig = zeros(1,sessionNum);
+    meanFRBigZscored = zeros(1,sessionNum);
+    MeanModuIndexShort =zeros(1,sessionNum) ;
+    meanFRShort = zeros(1,sessionNum);
+    meanFRShortZscored = zeros(1,sessionNum);
+    %%
+for i = 5:5%sessionNum
+    disp(['session is ' num2str(i)])
+    path = strcat(paths(i).folder, filesep, paths(i).name); % Use filesep instead of just '/'
+    close all
+    load (['SpikesBaseOnLocation' num2str(i) '.mat']);
+%     load (['sepratedSpindles' num2str(i) '.mat']);
+    load (['SOdetected' num2str(i) '.mat'])
+    load (['thal_ch_norm_filtered_so' num2str(i) '.mat']) ;
+    load (['SpikesCellinfo' num2str(i) '.mat']) ;
+    load (['refSochannels' num2str(i) '.mat']);
+    load (['SOreferenceChannelDelayAndRatioFrom0.5to4Hz' num2str(i) '.mat']);
+    fs=1250;
+    %exclude channels with low rate
+    temp = [];
+    spikes_sws= SpikesBaseOnLocation.SpikesBaseOnLocation.Thalamus;
+    for j=1:size(spikes_sws,1)
+        sp = find(spikes_sws(j,:)==1);
+        FR = length(sp)/(length(spikes_sws(j,:))/fs);
+        if FR<0.5
+            temp = [temp j];
+        end
+    end
+    spikes_sws(temp,:)=[];
+    SpikesBaseOnLocation.SpikesBaseOnLocation.ThalamousshankIDs(temp) = [];
+
+
+    winSize = 0.5;
+    winSample = (-round(winSize*fs):round(winSize*fs));
+    limitWinSample = size((-round(fs/8):round(fs/8)),2);
+    % soSampleGlob = sepratedSpindles130131.globalPeaks(2,:);
+    smoothSize = round(0.01*fs);
+    spikeData = spikes_sws;
+    
+    [nRows,~] = size(spikeData);
+    
+%     firingRateGlobInd = zeros(1,nRows);
+    ModuIndexBig = zeros(1,nRows);
+    firingRateBigInd = zeros(nRows,100);
+    firingRateShortInd = zeros(nRows,100);
+    BigCenters = zeros(nRows,100);
+    ShortCenters = zeros(nRows,100);
+    firingRateZscoreBigInd = zeros(nRows,100);
+    firingRateZscoreShortInd = zeros(nRows,100);
+    data_raster_Big = cell(1,size(spikeData,1));
+    refrences = refSochannels.mostSoForEachCh (1,:);
+    meanfiringRateBigInd = zeros(1,size(spikeData,1));
+    meanfiringRateBigIndZscored = zeros(1,size(spikeData,1));
+    data_raster_Short = cell(1,size(spikeData,1));
+    meanfiringRateShortInd = zeros(1,size(spikeData,1));
+    meanfiringRateShortIndZscord = zeros(1,size(spikeData,1));
+    ModuIndexshort = zeros(1,nRows);
+
+        for k=41:41%size(spikeData,1)
+          disp(['cell is = ' num2str(k)])
+        shank = SpikesBaseOnLocation.SpikesBaseOnLocation.ThalamousshankIDs  (1,k);
+        ref = getRefChannel(shank, refrences);
+        %choosing 
+        % spikeData = spikes_sws(spikes.shankID == ShankID,:);
+        thal_ch_norm_filteredSoTemp = thal_ch_norm_filtered_so;
+%         refSo = getRefSpindleChannel(ref);
+%         RefInf = sepratedSpindles.sepratedSpindles.globalSPindles{2, refSo};
+        RefInf = find(SOdetected.ISBLIPE(ref,:)==1);
+        load (['ratio and delay for session and shank ' num2str(i) num2str(shank) ])
+        soSampleBig = RefInf(RatioAndDelay.ratio >= 0.5);
+        
+        
+            sws = thal_ch_norm_filtered_so(ref,:);
+
+          
+            soSampleBig(soSampleBig < round(winSize*fs) | soSampleBig > length(sws)-round(winSize*fs)) = [];
+            
+            dataFiltered = zeros(1, length(winSample));
+%             dataRaw = zeros(1, length(winSample));
+            data_raster = zeros(length(soSampleBig), length(winSample));
+            
+            spikedata = spikeData(k,:);
+
+                % indivisuals cells for Global
+
+            for m=1:length(soSampleBig)
+                dataFiltered = dataFiltered + sws(1, soSampleBig(m)+winSample)/length(soSampleBig);
+%                 dataRaw = dataRaw + zscore(cortexLfp(1, soSample(i)+winSample))/length(soSample);
+                data_raster(m,:) = spikedata(soSampleBig(m)+winSample);
+%                 figure
+%                 SpikeRaster(data_raster, fs, [-winSize winSize]);
+            end
+    %         firingRate = mean(data_raster,1)*fs;
+    %         meanfiringRateGlobInd = mean (firingRateGlobInd(k,:));
+              [MIBig, f_rateBig,rateBig ,centerBig,data_rasterGlob] = ModulationIndex(spikedata,soSampleBig,fs,[-winSize winSize], [-0.25 0.25], 0.01, 0);
+              ModuIndexBig(k) = MIBig;
+              firingRateBigInd(k,:) = rateBig;
+              meanfiringRateBigInd(k) = mean (firingRateBigInd(k,:));
+              data_raster_Big{k} = (data_raster);
+               BigCenters(k,:) = centerBig;
+            firingRateZscoreBigInd(k,:) = f_rateBig;
+            meanfiringRateBigIndZscored(k) = mean(firingRateZscoreBigInd(k,:));
+
+
+              %     indivisuals cells for Local
+            dataFilteredShort = zeros(1, length(winSample));
+%             RefInfShort = sepratedSpindles.sepratedSpindles.localSPindles{2, refSo};
+            soSampleShort = RefInf(RatioAndDelay.ratio < 0.5);
+             data_rasterShort = zeros(length(soSampleShort), length(winSample));
+            soSampleShort(soSampleShort < round(winSize*fs) | soSampleShort > length(sws)-round(winSize*fs)) = [];
+
+                for m=1:length(soSampleShort)
+                    dataFilteredShort = dataFilteredShort + sws(1, soSampleShort(m)+winSample)/length(soSampleShort);
+                %     dataRaw = dataRaw + zscore(cortexLfp(1, soSample(i)+winSample))/length(soSample);
+                    data_rasterShort(m,:) = spikedata(soSampleShort(m)+winSample);
+            %         figure
+            %         SpikeRaster(data_raster, fs, [-winSize winSize]);
+                end
+        %         data_raster_Loc{k} = data_raster;
+        %         firingRate = mean(data_raster,1)*fs;
+        %         firingRateLocInd(k,:) = conv(firingRate, gausswin(smoothSize)/smoothSize, "same");
+                [MIShort, f_rateSHort,rateShort, centerShort,data_rasterShort] = ModulationIndex(spikedata,soSampleShort,fs,[-winSize winSize], [-0.25 0.25], 0.01, 0);
+                ModuIndexshort(k) = MIShort;
+                firingRateShortInd(k,:) = rateShort;
+                meanfiringRateShortInd(k) = mean (firingRateShortInd(k,:));
+                data_raster_Short{k} = (data_rasterShort);
+                ShortCenters(k,:) = centerShort;
+                firingRateZscoreShortInd(k,:) = f_rateSHort;
+                meanfiringRateShortIndZscord(k) = mean(firingRateZscoreShortInd(k,:));
+         %plot
+             t = winSample/fs;
+
+            figure 
+
+            subplot(4, 2, 1)
+            plot(t,dataFiltered ,'Color','r',LineWidth=2)
+            legend (['MI = ' num2str(ModuIndexBig(k))])
+            
+                title (['mean raw data around double top for  cell number = ' num2str(k)],'Color','k')
+            ylabel('Amp.','Color','k')
+            axis square
+            subplot(4, 2, 3)
+            data_raster_mat_Big = cell2mat(data_raster_Big(k));
+            SpikeRaster(data_raster_mat_Big, fs, [-winSize winSize],0.001);
+                title (['raster plot of all cells for double top (cell) = ' num2str(k) ] ,'Color','k')
+            ylabel('Trials','Color','k')
+            axis square
+            subplot(4, 2, 5)
+            area(BigCenters(k,:), firingRateBigInd(k,:),'FaceColor','r')
+            title ([' Firing rate for double top cell number = ' num2str(k) ],'Color','k')
+            ylabel('FR (spike/sec)','Color','k')
+            xlabel('Time (s)','Color','k')
+            axis square
+            subplot(4, 2, 7)
+            area(BigCenters(k,:), firingRateZscoreBigInd(k,:),'FaceColor','r')
+            title ([' Firing rate was z-scored for double top cell number = ' num2str(k) ],'Color','k')
+            ylabel('FR (spike/sec)','Color','k')
+            xlabel('Time (s)','Color','k')
+            axis square
+            % ylim([0 upLimGlob])
+            
+%                 upLimLocInd = ceil(max(FRspindles120806.LocalIndi(m,:)));
+                subplot(4, 2, 2)
+                plot(t, dataFilteredShort ,'Color','b',LineWidth=2)
+            %         text (['MI = ' num2str(ModuIndex120806.Local(m))])
+            legend (['MI = ' num2str(ModuIndexshort(k))])
+            
+            
+                title (['mean raw data around single top for  cell number = ' num2str(k)],'Color','k')
+                ylabel('Amp.','Color','k')
+                axis square
+                subplot(4, 2, 4)
+                    data_raster_mat_Short = cell2mat(data_raster_Short(k));
+            
+                SpikeRaster(data_raster_mat_Short, fs, [-winSize winSize], 0.001);
+                title (['raster plot of all cells for single top (cell) = ' num2str(k) ] ,'Color','k')
+                ylabel('Trials','Color','k')
+                axis square
+                subplot(4, 2, 6)
+                area(ShortCenters(k,:), firingRateShortInd(k,:),'FaceColor','b')
+                title ([' Firing rate for single top(cell number) = ' num2str(k) ],'Color','k')
+                ylabel('FR (spike/sec)','Color','k')
+                xlabel('Time (s)','Color','k')
+                axis square
+
+                subplot(4, 2, 8)
+                area(ShortCenters(k,:), firingRateZscoreShortInd(k,:),'FaceColor','b')
+                title ([' Firing rate was z-scored for single top(cell number) = ' num2str(k) ],'Color','k')
+                ylabel('FR (spike/sec)','Color','k')
+                xlabel('Time (s)','Color','k')
+                axis square
+%                 ylim([0 upLimLocInd])
+
+
+        end
+% % 
+% %         save figures
+% % 
+        clearFigures(path);
+        
+        
+%         Get handles of all open figures
+        figures = findobj('Type','figure');
+                        
+%         Maximize each figure
+        for n = 1:length(figures)
+            set(figures(n),'WindowState','maximized');
+        end
+        
+%         Get the path to the directory where you want to save the figures
+        save_path = (path);
+        
+%         Get a list of all open figures
+        fig_list = findobj('Type', 'figure');
+        
+%         Save each figure to the specified path
+        for n= 1:length(fig_list)
+            fig = fig_list(n);
+            saveas(fig, fullfile(save_path, sprintf('figure_%d.png', n)));
+                saveas(fig, fullfile(save_path, sprintf('figure_%d.fig', n)));
+        
+        end
+
+
+        BigCellsInformation.FiringrateBigIndivisually = firingRateBigInd;
+        BigCellsInformation.FiringrateBigIndivisuallyZscored = firingRateZscoreBigInd;
+        BigCellsInformation.MIBigIndivisually = ModuIndexBig;
+        BigCellsInformation.meanfiringRateBigInd = meanfiringRateBigInd;
+        BigCellsInformation.meanfiringRateBigndZscored = meanfiringRateBigIndZscored;
+        BigCellsInformation.datarasterBig = data_raster_Big;
+
+        ShortCellsInformation.FiringrateShortIndivisually = firingRateShortInd;
+        ShortCellsInformation.FiringrateShortIndivisuallyZscored = firingRateZscoreShortInd;
+        ShortCellsInformation.MIShortIndivisually = ModuIndexshort;
+        ShortCellsInformation.meanfiringRateShortInd = meanfiringRateShortInd;
+        ShortCellsInformation.meanfiringRateShortIndZscored = meanfiringRateShortIndZscord;
+        ShortCellsInformation.datarasterShort = data_raster_Short;
+
+
+        save (['BigCellsInformation' num2str(i) '.mat'],"BigCellsInformation")
+        save (['ShortCellsInformation' num2str(i) '.mat'],"ShortCellsInformation")
+
+
+        MeanModuIndexbig(i) = mean(ModuIndexBig) ;
+        meanFRBig(i) = mean(meanfiringRateBigInd);
+      meanFRBigZscored(i) =  mean( meanfiringRateBigIndZscored);
+      MeanModuIndexShort(i) = mean(ModuIndexshort) ;
+      meanFRShort(i) = mean(meanfiringRateShortInd);
+      meanFRShortZscored(i) = mean(meanfiringRateShortIndZscord);
+
+end
+totalCellInformationSO.MeanModulationIndexBig = MeanModuIndexbig;
+totalCellInformationSO.MeanFiringrateBig = meanFRBig;
+totalCellInformationSO.MeanFiringrateBigZscored = meanFRBigZscored;
+totalCellInformationSO.MeanModulationIndexShort = MeanModuIndexShort;
+totalCellInformationSO.MeanFiringrateShort = meanFRShort;
+totalCellInformationSO.MeanFiringrateShortZscored = meanFRShortZscored;
+
+
+save ('totalCellInformationSO',"totalCellInformationSO")
+
+toc
+
+
+%%
+
+function clearFigures(folderPath)
+% Specify the path of the folder
+
+% Clear all .fig files in the folder
+files = dir(fullfile(folderPath, '*.fig'));
+for iFile = 1:length(files)
+    delete(fullfile(folderPath, files(iFile).name));
+end
+
+% Clear all .png files in the folder
+files = dir(fullfile(folderPath, '*.png'));
+for iFile = 1:length(files)
+    delete(fullfile(folderPath, files(iFile).name));
+end
+end
+%%
+
