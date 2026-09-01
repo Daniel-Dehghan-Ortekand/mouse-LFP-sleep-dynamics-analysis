@@ -1,0 +1,883 @@
+%% Statistical Comparison of Slow Oscillation Features
+% This script compares single and double slow oscillations across recording
+% sessions by analyzing amplitude, duration, firing rate, and modulation
+% index (MI). It performs statistical tests and generates histograms,
+% boxplots, and scatter plots to visualize group differences.
+
+
+clc 
+clear
+close all
+% changeCurrentFolder('D:\daniel\Mouse12-120806')
+%%
+% % load SOdetectedForChooseOneChannelFromEachShank.mat
+% load SOreferenceChannelDelayAndRatio.mat 
+% load SepratedMeanSignals.mat
+% load firingRateBig.mat 
+% load firingRateshort.mat    
+% % load PAC_features120806.mat 
+
+%% amplitude compare SO
+
+% Define paths
+pathsAmp = dir('*/sepratedSpindles*');
+[nRaws, ~] = size(pathsAmp);
+
+meanAmpBigindi = zeros(1,nRaws);
+
+meanAmpShortindi = zeros(1,nRaws);
+BigAmpcat = [];
+ShortAmpcat = [];
+for k = 1:nRaws
+%     filename = strcat(pathsAmp(k).folder, filesep, pathsAmp(k).name); % Use filesep instead of just '/'
+%     data = load(filename);
+%     Gobal =['data.sepratedSpindles',num2str(sessionNumber(k)),'.globalPeaks'];
+%     GlobalData = eval(Gobal);
+%     GlobAmpcat = [GlobAmpcat , GlobalData(1,:)];
+    load (['SOdetected' num2str(k) '.mat'])
+    load (['SOreferenceChannelDelayAndRatioFrom0.5to4Hz' num2str(k) '.mat'])
+    load (['thal_ch_norm_filtered_so' num2str(k) '.mat'])
+    refsamp= find(SOdetected.ISBLIPE(SOreferenceChannelDelayAndRatio.RefCh,:)==1);
+
+%     ref = getRefSpindleChannel(sepratedSpindles.sepratedSpindles.referencChannel(1,1) );
+     BigData= refsamp(SOreferenceChannelDelayAndRatio.ratio> 0.5);
+     ShortData = refsamp(SOreferenceChannelDelayAndRatio.ratio <= 0.5);
+%      BIgAmp = thal_ch_norm_filtered_so(SOreferenceChannelDelayAndRatio.RefCh,BigData) ;
+     BIgAmp = mean(thal_ch_norm_filtered_so(SOreferenceChannelDelayAndRatio.RefCh,BigData) );
+    
+%     ShortAmp = thal_ch_norm_filtered_so(SOreferenceChannelDelayAndRatio.RefCh,ShortData);
+      ShortAmp = mean(thal_ch_norm_filtered_so(SOreferenceChannelDelayAndRatio.RefCh,ShortData));
+      BigAmpcat = [BigAmpcat , BIgAmp];
+
+%     meanAmpBigindi(k) = mean(BIgAmp(1,:));
+%     Local =['data.sepratedSpindles',num2str(sessionNumber(k)),'.LocalPeaks'];
+%     LocalData = eval(Local);
+%     meanAmpShortindi(k) = mean(ShortAmp(1,:));
+    ShortAmpcat = [ShortAmpcat , ShortAmp];
+
+end
+
+% t-test
+meanAmpBig = mean(BigAmpcat);
+meanAmpShort = mean(ShortAmpcat);
+
+
+% Perform t-test
+[h, p] = ttest2(BigAmpcat , ShortAmpcat);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean amplitude for Global is ' num2str(meanAmpBig)]);
+    disp(['mean amplitude for Local is ' num2str(meanAmpShort)]);
+    fprintf('There is a significant difference between the means.\n');
+else
+    disp(['mean amplitude for Gloal is ' num2str(meanAmpBig)]);
+    disp(['mean amplitude for Local is ' num2str(meanAmpShort)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+
+%plot
+
+
+figure
+nbin=4;
+histogram(BigAmpcat,nbin,'FaceColor','b','Normalization','probability')
+xline (meanAmpBig,'Color','b','LineWidth',2,'LineStyle','--')
+hold on
+nbin = 6;
+histogram (ShortAmpcat,nbin,'FaceColor','r','Normalization','probability')
+xline(meanAmpShort,'color','r','LineWidth',2,'LineStyle','--')
+
+title(' amplitude for single and double tops ','Color','k','FontSize',20)
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('Amplitude','Color','k','FontSize',20)
+ylabel('P','FontSize',20)
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Single',['Mean single = ' num2str(meanAmpBig)],...
+    'Double',['Mean double = ' num2str(meanAmpShort)],['P-value =' num2str(p)]); 
+
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+histdim = [2.5 0.5];
+text('FontSize', 12, 'Color', 'k', 'Position', histdim,'String',['p-value = ' num2str(p)]);
+hold off
+axis    square
+
+%% campare delays 
+
+% delayBig = SOreferenceChannelDelayAndRatio.delay (SepratedMeanSignals.EventsBiggerThanThreshold );
+% delayShort = SOreferenceChannelDelayAndRatio.delay (SepratedMeanSignals.EventsShorterThanThreshold );
+% 
+% meandelaybig = mean(delayBig);
+% meandelayshort = mean(delayShort);
+% 
+% 
+% 
+% % Perform t-test
+% [h, p] = ttest2(delayBig, delayShort);
+% 
+% % Display results
+% if isnan(h)
+%     disp('Error in performing t-test.');
+% elseif h
+%     disp(['mean delay for Big ratio is ' num2str(meandelaybig)]);
+%     disp(['mean delay for short ratio is ' num2str(meandelayshort)]);
+%     fprintf('There is a significant difference between the means.\n');
+% else
+%     disp(['mean delay for Big ratio is ' num2str(meandelaybig)]);
+%     disp(['mean delay for short ratio is ' num2str(meandelayshort)]);
+%     fprintf('There is no significant difference between the means.\n');
+% end
+% fprintf('p-value: %.4f\n', p);
+% 
+% % plot 
+% 
+% %plot 
+% figure
+% nbin=50;
+% histogram(delayBig,nbin,'FaceColor','white')
+% xline (meandelaybig,'Color','r','LineWidth',2,'LineStyle','--')
+% set(gca,'fontsize',16,'color',[0 0 0])
+% set(groot, 'defaultFigureColor', [0 0 0]);
+% set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+% hold on
+% histogram (delayShort,nbin,'FaceColor','m')
+% xline(meandelayshort,'color','g','LineWidth',2,'LineStyle','--')
+% % if p < 0.05
+% %     if meandelaybig > meandelayshort
+% %         plot (meandelayshort:meandelaybig,9*ones(meandelayshort:meandelaybig))
+% %         hold on 
+% %         plot ((meandelaybig-meandelayshort)/2,9,'MarkerIndices','*')
+% %         hold off
+% %     end
+% % else 
+% %     plot (meandelaybig:meandelayshort,9*ones(meandelaybig:meandelayshort))
+% %         hold on 
+% %         plot ((abs(meandelaybig-meandelayshort))/2,9,'MarkerIndices','*')
+% %         hold off
+% % end
+% title('histogram of delay for bigger and shorter than threshold ','Color','white')
+% legend (['P-value = ' num2str(p)],'Color','white')
+% hold off
+% 
+
+%% compare ratios 
+% ratioBig = SOreferenceChannelDelayAndRatio.ratio (SepratedMeanSignals.EventsBiggerThanThreshold );
+% ratioShort = SOreferenceChannelDelayAndRatio.ratio (SepratedMeanSignals.EventsShorterThanThreshold );
+% 
+% meanratiobig = mean(ratioBig);
+% meanratioshort = mean(ratioShort);
+% 
+% 
+% 
+% % Perform t-test
+% [h, p] = ttest2(ratioBig, ratioShort);
+% 
+% % Display results
+% if isnan(h)
+%     disp('Error in performing t-test.');
+% elseif h
+%     disp(['mean ratio for Big ratio is ' num2str(meanratiobig)]);
+%     disp(['mean ratio for short ratio is ' num2str(meanratioshort)]);
+%     fprintf('There is a significant difference between the means.\n');
+% else
+%     disp(['mean ratio for Big ratio is ' num2str(meanratiobig)]);
+%     disp(['mean ratio for short ratio is ' num2str(meanratioshort)]);
+%     fprintf('There is no significant difference between the means.\n');
+% end
+% fprintf('p-value: %.4f\n', p);
+% 
+% %plot
+% figure
+% nbin=50;
+% histogram(ratioBig,nbin,'FaceColor','white')
+% xline (meanratiobig,'Color','r','LineWidth',2,'LineStyle','--')
+% set(gca,'fontsize',16,'color',[0 0 0])
+% set(groot, 'defaultFigureColor', [0 0 0]);
+% set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+% hold on
+% histogram (ratioShort,nbin,'FaceColor','m')
+% xline(meanratioshort,'color','g','LineWidth',2,'LineStyle','--')
+% % if p < 0.05
+% %     if meandelaybig > meandelayshort
+% %         plot (meandelayshort:meandelaybig,9*ones(meandelayshort:meandelaybig))
+% %         hold on 
+% %         plot ((meandelaybig-meandelayshort)/2,9,'MarkerIndices','*')
+% %         hold off
+% %     end
+% % else 
+% %     plot (meandelaybig:meandelayshort,9*ones(meandelaybig:meandelayshort))
+% %         hold on 
+% %         plot ((abs(meandelaybig-meandelayshort))/2,9,'MarkerIndices','*')
+% %         hold off
+% % end
+% title('histogram of ratio for bigger and shorter than threshold ','Color','white')
+% legend (['P-value = ' num2str(p)],'Color','white')
+% 
+% hold off
+
+%% duration compare 
+% detection for bigger 
+
+% [y,IsBlip]  = SOMolle(SepratedMeanSignals.SignalsBiggerThanThreshold (1,:));
+% YBig = SOdetected.Y(1,:);
+% ISBLIPEBig = SOdetected.ISBLIPE(1,:);
+% 
+% 
+% diffBig = diff(YBig);
+% start_indicesBig = find(diffBig==1);
+% end_indicesBig = find(diffBig==-1);
+% durationBig = end_indicesBig - start_indicesBig;
+% % detection for shorter 
+% 
+% [y,IsBlip]  = SOMolle(SepratedMeanSignals.SignalsShorterThanThreshold   (1,:));
+% Yshort = y;
+% ISBLIPEShort = IsBlip;
+% 
+% diffShort = diff(Yshort);
+% start_indicesShort = find(diffShort == 1);
+% end_indicesShort = find(diffShort == -1);
+% durationShort = end_indicesShort - start_indicesShort ;
+fs=1250;
+BigDurationcat =[];
+ShortDurationtcat=[];
+nRaws =18;
+for k = 1:nRaws
+%     filename = strcat(pathsAmp(k).folder, filesep, pathsAmp(k).name); % Use filesep instead of just '/'
+%     data = load(filename);
+%     Gobal =['data.sepratedSpindles',num2str(sessionNumber(k)),'.globalPeaks'];
+%     GlobalData = eval(Gobal);
+%     GlobAmpcat = [GlobAmpcat , GlobalData(1,:)];
+    load (['SOdetected' num2str(k) '.mat'])
+    
+    load (['SOreferenceChannelDelayAndRatioFrom0.5to4Hz' num2str(k) '.mat'])
+    load (['thal_ch_norm_filtered_so' num2str(k) '.mat'])
+    refsamp= find(SOdetected.ISBLIPE(SOreferenceChannelDelayAndRatio.RefCh,:)==1);
+    ref = SOreferenceChannelDelayAndRatio.RefCh;
+    ratio = SOreferenceChannelDelayAndRatio.ratio;
+%     ref = getRefSpindleChannel(sepratedSpindles.sepratedSpindles.referencChannel(1,1) );
+%      BigData= refsamp(SOreferenceChannelDelayAndRatio.ratio> 0.5);
+%      ShortData = refsamp(SOreferenceChannelDelayAndRatio.ratio <= 0.5);
+%      BIgAmp = thal_ch_norm_filtered_so(SOreferenceChannelDelayAndRatio.RefCh,BigData) ;
+%     ShortAmp = thal_ch_norm_filtered_so(SOreferenceChannelDelayAndRatio.RefCh,ShortData);
+[durationBig, durationShort] = ShortAndBIgDurationComputation(refsamp,fs,ratio,ref,thal_ch_norm_filtered_so);
+    BigDurationcat = [BigDurationcat , mean(durationBig)];
+
+%     meanAmpBigindi(k) = mean(BIgAmp(1,:));
+%     Local =['data.sepratedSpindles',num2str(sessionNumber(k)),'.LocalPeaks'];
+%     LocalData = eval(Local);
+%     meanAmpShortindi(k) = mean(ShortAmp(1,:));
+    ShortDurationtcat = [ShortDurationtcat , mean(durationShort)];
+    SOduration.Big = durationBig;
+    SOduration.short = durationShort;
+end
+
+% compute means
+
+meanDurationbig = mean(BigDurationcat);
+meanDurationshort = mean(ShortDurationtcat);
+
+
+% Perform t-test
+[h, p] = ttest2(BigDurationcat, ShortDurationtcat);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean duration for Big ratio is ' num2str(meanDurationbig)]);
+    disp(['mean duration for short ratio is ' num2str(meanDurationshort)]);
+    fprintf('There is a significant difference between the means.\n');
+else
+    disp(['mean duration for Big ratio is ' num2str(meanDurationbig)]);
+    disp(['mean duration for short ratio is ' num2str(meanDurationshort)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+
+%plot 
+
+figure
+nbin=5;
+histogram(BigDurationcat,nbin,'FaceColor','r','Normalization','probability')
+xline (meanDurationbig,'Color','r','LineWidth',2,'LineStyle','--')
+% set(gca,'fontsize',16,'color',[0 0 0])
+% set(groot, 'defaultFigureColor', [0 0 0]);
+% set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+hold on
+histogram (ShortDurationtcat,nbin,'FaceColor','b','Normalization','probability')
+xline(meanDurationshort,'color','b','LineWidth',2,'LineStyle','--')
+% if p < 0.05
+%     if meandelaybig > meandelayshort
+%         plot (meandelayshort:meandelaybig,9*ones(meandelayshort:meandelaybig))
+%         hold on 
+%         plot ((meandelaybig-meandelayshort)/2,9,'MarkerIndices','*')
+%         hold off
+%     end
+% else 
+%     plot (meandelaybig:meandelayshort,9*ones(meandelaybig:meandelayshort))
+%         hold on 
+%         plot ((abs(meandelaybig-meandelayshort))/2,9,'MarkerIndices','*')
+%         hold off
+% end
+legend_handle = legend('Double',['Mean double tops = ' num2str(meanDurationbig)],...
+    'Single',['Mean Single top = ' num2str(meanDurationshort)],['P-value =' num2str(p)]); 
+ylabel('P')
+xlabel('Duration')
+title('Duration for single and double tops for all sessions ')
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+histdim = [900 0.2];
+text('FontSize', 12, 'Color', 'k', 'Position', histdim,'String',['p-value = ' num2str(p)]);
+hold off
+axis    square
+%% firing rate 
+
+
+% Define paths
+% pathsFR = dir('*/FRspindles*');
+% [nRaws, nColumns] = size(pathsFR);
+% 
+meanFRBigindi = zeros(1,nRaws);
+% 
+meanFRShortindi = zeros(1,nRaws);
+BigRcatzscored = [];
+BigFRcat =[];
+ShortFRcatzscored = [];
+ShortFRcat =[];
+% fs=1250;
+for k = 1:nRaws
+%     filename = strcat(pathsFR(k).folder, filesep, pathsFR(k).name); % Use filesep instead of just '/'
+meanFRShortindicell =[];
+meanFRBigindicell =[];
+
+    load (['SpikesBaseOnLocation' num2str(k) '.mat']);
+     temp = [];
+    spikes_sws= SpikesBaseOnLocation.SpikesBaseOnLocation.Thalamus;
+    for j=1:size(spikes_sws,1)
+        sp = find(spikes_sws(j,:)==1);
+        FR = length(sp)/(length(spikes_sws(j,:))/fs);
+        if FR<0.5
+            temp = [temp j];
+        end
+    end
+    spikes_sws(temp,:)=[];
+    SpikesBaseOnLocation.SpikesBaseOnLocation.ThalamousshankIDs(temp) = [];
+
+    for i=1:length(SpikesBaseOnLocation.SpikesBaseOnLocation.ThalamousshankIDs)
+        load (['BigCellsInformation' num2str(k)  '.mat'])
+        load (['ShortCellsInformation' num2str(k)  '.mat'])
+        BigDatazscored = BigCellsInformation.meanfiringRateBigndZscored (1,:);
+        BiglData = BigCellsInformation.meanfiringRateBigInd(1,:);
+%         GlobFRcat = [GlobFRcat ,  GlobalData];
+%       meanFRGlobindicell(i) = mean( GlobalData);
+        ShortDataZscored =ShortCellsInformation.meanfiringRateShortIndZscored  (1,:);
+        ShortData = ShortCellsInformation.meanfiringRateShortInd(1,:);
+%             meanFRLocindicell(i) = mean( LocalData);
+
+    end
+    
+%     data = load(filename);
+%     Gobal =['data.FiringrateSpindles',num2str(sessionNumber(k)),'.Global'];
+%     GlobalData = eval(Gobal);
+
+    BigRcatzscored = [BigRcatzscored ,  BigDatazscored];
+    BigFRcat =[BigFRcat , BiglData];
+%     meanFRGlobindi(k) = mean( GlobalData);
+%     Local =['data.FiringrateSpindles',num2str(sessionNumber(k)),'.Local'];
+%     LocalData = eval(Local);
+    
+%     meanFRLocindi(k) = mean( LocalData);
+    ShortFRcatzscored = [ShortFRcatzscored , ShortDataZscored];
+    ShortFRcat = [ShortFRcat , ShortData];
+
+end
+% compute means
+
+meanfiringRateBigZscored = mean(BigRcatzscored);
+meanfiringRateBig = mean (BigFRcat);
+meanfiringRateShortzscored = mean(ShortFRcatzscored);
+meanfiringRateShort = mean(ShortFRcat);
+
+
+% Perform t-test
+[h, p] = ttest(BigRcatzscored, ShortFRcatzscored);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean firing rate for Big is ' num2str(meanfiringRateBigZscored)]);
+    disp(['mean firing rate for Short is ' num2str(meanfiringRateShortzscored)]);
+    fprintf('There is a significant difference between the means.\n');
+else
+    disp(['mean firing rate for Big is ' num2str(meanfiringRateBigZscored)]);
+    disp(['mean firing rate for Short is ' num2str(meanfiringRateShortzscored)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+
+% Perform t-test
+[h, p] = ttest(BigRcatzscored, ShortFRcatzscored);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean firing rate for Big is ' num2str(meanfiringRateBig)]);
+    disp(['mean firing rate for Short is ' num2str(meanfiringRateShort)]);
+    fprintf('There is a significant difference between the means.\n');
+else
+    disp(['mean firing rate for Big is ' num2str(meanfiringRateBig)]);
+    disp(['mean firing rate for Short is ' num2str(meanfiringRateShort)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+%plot
+
+%plot 
+
+figure
+nbin=15;
+histogram(BigRcatzscored,nbin,'FaceColor','b')
+xline (meanfiringRateBigZscored,'Color','b','LineWidth',2,'LineStyle','--')
+set(gca,'fontsize',16,'color',[1 1 1])
+set(groot, 'defaultFigureColor', [ 1 1 1]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [ 0 0 0], 'defaultAxesZColor', [0 0 0 ]);
+hold on
+histogram (ShortFRcatzscored,nbin,'FaceColor','r')
+xline(meanfiringRateShortzscored,'color','r','LineWidth',2,'LineStyle','--')
+% if p < 0.05
+%     if meandelaybig > meandelayshort
+%         plot (meandelayshort:meandelaybig,9*ones(meandelayshort:meandelaybig))
+%         hold on 
+%         plot ((meandelaybig-meandelayshort)/2,9,'MarkerIndices','*')
+%         hold off
+%     end
+% else 
+%     plot (meandelaybig:meandelayshort,9*ones(meandelaybig:meandelayshort))
+%         hold on 
+%         plot ((abs(meandelaybig-meandelayshort))/2,9,'MarkerIndices','*')
+%         hold off
+% end
+title('histogram of Firingrate for Big and Short ','Color','k')
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('Firing rate','Color','k')
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Big',['Mean Big = ' num2str(meanfiringRateBigZscored)],'Short',['Mean Short = ' num2str(meanfiringRateShortzscored)]); 
+
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+text('FontSize', 12, 'Color', 'k', 'Position', [70, 200],'String',['p-value = ' num2str(p)]);
+hold off
+
+%
+figure
+nbin=15;
+histogram(BigFRcat,nbin,'FaceColor','b')
+xline (meanfiringRateBig,'Color','b','LineWidth',2,'LineStyle','--')
+set(gca,'fontsize',16,'color',[1 1 1])
+set(groot, 'defaultFigureColor', [ 1 1 1]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [ 0 0 0], 'defaultAxesZColor', [0 0 0 ]);
+hold on
+histogram (ShortFRcat,nbin,'FaceColor','r')
+xline(meanfiringRateShort,'color','r','LineWidth',2,'LineStyle','--')
+% if p < 0.05
+%     if meandelaybig > meandelayshort
+%         plot (meandelayshort:meandelaybig,9*ones(meandelayshort:meandelaybig))
+%         hold on 
+%         plot ((meandelaybig-meandelayshort)/2,9,'MarkerIndices','*')
+%         hold off
+%     end
+% else 
+%     plot (meandelaybig:meandelayshort,9*ones(meandelaybig:meandelayshort))
+%         hold on 
+%         plot ((abs(meandelaybig-meandelayshort))/2,9,'MarkerIndices','*')
+%         hold off
+% end
+title('histogram of Firingrate for Big and Short ','Color','k')
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('Firing rate','Color','k')
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Big',['Mean Short = ' num2str(meanfiringRateBig)],'Short',['Mean Short = ' num2str(meanfiringRateShort)]); 
+
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+text('FontSize', 20, 'Color', 'k', 'Position', [1.5, 2],'String',['p-value = ' num2str(p)]);
+hold off
+
+%% PAC features 
+% 
+% meanSIangleShort = mean(PAC_features.angleShort);
+% 
+% meanSIangleBig = mean(PAC_features.angleBig);
+% 
+% % for angles 
+% 
+% % Perform t-test
+% % [h, p] = ttest2(PAC_features.angleBig, PAC_features.angleShort);
+% pval = circ_wwtest(PAC_features.angleBig,PAC_features.angleShort);
+% % Display results
+% if pval < 0.05
+%     disp(['mean SI angle for Big is ' num2str(meanSIangleBig)]);
+%     disp(['mean SI angle for short is ' num2str(meanSIangleShort)]);
+%     fprintf('There is significant difference between the means.\n');
+% end
+% fprintf('p-value: %.4f\n', pval);
+% 
+% 
+% %plot for angles 
+% 
+% figure
+% nbin=50;
+% histogram(PAC_features.angleBig,nbin,'FaceColor','white')
+% xline (meanSIangleBig,'Color','r','LineWidth',2,'LineStyle','--')
+% set(gca,'fontsize',16,'color',[0 0 0])
+% set(groot, 'defaultFigureColor', [0 0 0]);
+% set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+% hold on
+% histogram (PAC_features.angleShort,nbin,'FaceColor','m')
+% xline(meanSIangleShort,'color','g','LineWidth',2,'LineStyle','--')
+% % if p < 0.05
+% %     if meandelaybig > meandelayshort
+% %         plot (meandelayshort:meandelaybig,9*ones(meandelayshort:meandelaybig))
+% %         hold on 
+% %         plot ((meandelaybig-meandelayshort)/2,9,'MarkerIndices','*')
+% %         hold off
+% %     end
+% % else 
+% %     plot (meandelaybig:meandelayshort,9*ones(meandelaybig:meandelayshort))
+% %         hold on 
+% %         plot ((abs(meandelaybig-meandelayshort))/2,9,'MarkerIndices','*')
+% %         hold off
+% % end
+% title('histogram of SI angle for bigger and shorter than threshold ','Color','white')
+% legend (['P-value = ' num2str(p)],'Color','white')
+% 
+% hold off
+% 
+% % for strength 
+% meanSIabsShort = mean(PAC_features.strengthShort);
+% meanSIabsBig = mean(PAC_features.strengthBig);
+% 
+% % Perform t-test
+% [h, p] = ttest2(PAC_features.strengthBig, PAC_features.strengthShort);
+% 
+% % Display results
+% if isnan(h)
+%     disp('Error in performing t-test.');
+% elseif h
+%     disp(['mean SI strngth for Big is ' num2str(meanSIabsBig)]);
+%     disp(['mean SI strngth for short is ' num2str(meanSIabsShort)]);
+%     fprintf('There is a significant difference between the means.\n');
+% else
+%     disp(['mean SI strngth for Big is ' num2str(meanSIabsBig)]);
+%     disp(['mean SI strngth for short is ' num2str(meanSIabsShort)]);
+%     fprintf('There is no significant difference between the means.\n');
+% end
+% fprintf('p-value: %.4f\n', p);
+% 
+% 
+% %plot  
+% 
+% figure
+% nbin=50;
+% histogram(PAC_features.strengthBig,nbin,'FaceColor','white')
+% xline (meanSIabsBig,'Color','r','LineWidth',2,'LineStyle','--')
+% set(gca,'fontsize',16,'color',[0 0 0])
+% set(groot, 'defaultFigureColor', [0 0 0]);
+% set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+% hold on
+% histogram (PAC_features.strengthShort,nbin,'FaceColor','m')
+% xline(meanSIabsShort,'color','g','LineWidth',2,'LineStyle','--')
+% % if p < 0.05
+% %     if meandelaybig > meandelayshort
+% %         plot (meandelayshort:meandelaybig,9*ones(meandelayshort:meandelaybig))
+% %         hold on 
+% %         plot ((meandelaybig-meandelayshort)/2,9,'MarkerIndices','*')
+% %         hold off
+% %     end
+% % else 
+% %     plot (meandelaybig:meandelayshort,9*ones(meandelaybig:meandelayshort))
+% %         hold on 
+% %         plot ((abs(meandelaybig-meandelayshort))/2,9,'MarkerIndices','*')
+% %         hold off
+% % end
+% title('histogram of strength for bigger and shorter than threshold ','Color','white')
+% legend (['P-value = ' num2str(p)],'Color','white')
+% 
+% hold off
+
+%%  MI 
+% Define paths
+pathsFR = dir('*/FRspindles*');
+[nRaws, ~] = size(pathsFR);
+fs=1250;
+meanMIBigindi = zeros(1,nRaws);
+% 
+meanMIShortindi = zeros(1,nRaws);
+BigMIcatzscored = [];
+BigMIcat =[];
+ShortMIcatzscored = [];
+ShortMIcat =[];
+% fs=1250;
+for k = 1:nRaws
+%     filename = strcat(pathsFR(k).folder, filesep, pathsFR(k).name); % Use filesep instead of just '/'
+meanMIShortindicell =[];
+meanMIBigindicell =[];
+    load (['SpikesBaseOnLocation' num2str(k) '.mat']);
+     temp = [];
+    spikes_sws= SpikesBaseOnLocation.SpikesBaseOnLocation.Thalamus;
+    for j=1:size(spikes_sws,1)
+        sp = find(spikes_sws(j,:)==1);
+        FR = length(sp)/(length(spikes_sws(j,:))/fs);
+        if FR<0.5
+            temp = [temp j];
+        end
+    end
+    spikes_sws(temp,:)=[];
+    SpikesBaseOnLocation.SpikesBaseOnLocation.ThalamousshankIDs(temp) = [];
+
+    for i=1:length(SpikesBaseOnLocation.SpikesBaseOnLocation.ThalamousshankIDs)
+        load (['BigCellsInformation' num2str(k)  '.mat'])
+        load (['ShortCellsInformation' num2str(k)  '.mat'])
+%         GlobalDatazscored = GlobalCellsInformation.MIglobalIndivisually   (1,:);
+        BigData = BigCellsInformation.MIBigIndivisually(1,:);
+%         GlobFRcat = [GlobFRcat ,  GlobalData];
+%       meanFRGlobindicell(i) = mean( GlobalData);
+%         LocalDataZscored = LocalCellsInformation.meanfiringRateLocalIndZscored(1,:);
+        ShortData = ShortCellsInformation.MIShortIndivisually(1,:);
+%             meanFRLocindicell(i) = mean( LocalData);
+
+    end
+    
+%     data = load(filename);
+%     Gobal =['data.FiringrateSpindles',num2str(sessionNumber(k)),'.Global'];
+%     GlobalData = eval(Gobal);
+
+%     GlobFRcatzscored = [GlobFRcatzscored ,  GlobalDatazscored];
+    BigMIcat =[BigMIcat , BigData];
+%     meanFRGlobindi(k) = mean( GlobalData);
+%     Local =['data.FiringrateSpindles',num2str(sessionNumber(k)),'.Local'];
+%     LocalData = eval(Local);
+    
+%     meanFRLocindi(k) = mean( LocalData);
+%     LocFRcatzscored = [LocFRcatzscored , LocalDataZscored];
+    ShortMIcat = [ShortMIcat , ShortData];
+
+end
+% compute means
+
+% meanfiringRateGlobZscored = mean(GlobFRcatzscored);
+meanMIBig = mean (BigMIcat);
+% meanfiringRateLoczscored = mean(LocFRcatzscored);
+meanMIShort = mean(ShortMIcat);
+% 
+% 
+% % Perform t-test
+% [h, p] = ttest(GlobMIcatzscored, LocMIcatzscored);
+% 
+% % Display results
+% if isnan(h)
+%     disp('Error in performing t-test.');
+% elseif h
+%     disp(['mean firing rate for Global is ' num2str(meanfiringRateGlobZscored)]);
+%     disp(['mean firing rate for Local is ' num2str(meanfiringRateLoczscored)]);
+%     fprintf('There is a significant difference between the means.\n');
+% else
+%     disp(['mean firing rate for Global is ' num2str(meanfiringRateGlobZscored)]);
+%     disp(['mean firing rate for Local is ' num2str(meanfiringRateLoczscored)]);
+%     fprintf('There is no significant difference between the means.\n');
+% end
+% fprintf('p-value: %.4f\n', p);
+
+
+% Perform t-test
+[h, p] = ttest(BigMIcat, ShortMIcat);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean MI for Global is ' num2str(meanMIBig)]);
+    disp(['mean MI for Local is ' num2str(meanMIShort)]);
+    fprintf('There is a significant difference between the means.\n');
+else
+    disp(['mean MI for Global is ' num2str(meanMIBig)]);
+    disp(['mean MI for Local is ' num2str(meanMIShort)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+%plot
+
+%plot 
+
+% figure
+% nbin=15;
+% histogram(GlobFRcatzscored,nbin,'FaceColor','b')
+% xline (meanfiringRateGlobZscored,'Color','b','LineWidth',2,'LineStyle','--')
+% set(gca,'fontsize',16,'color',[1 1 1])
+% set(groot, 'defaultFigureColor', [ 1 1 1]);
+% set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [ 0 0 0], 'defaultAxesZColor', [0 0 0 ]);
+% hold on
+% histogram (LocFRcatzscored,nbin,'FaceColor','r')
+% xline(meanfiringRateLoczscored,'color','r','LineWidth',2,'LineStyle','--')
+% % if p < 0.05
+% %     if meandelaybig > meandelayshort
+% %         plot (meandelayshort:meandelaybig,9*ones(meandelayshort:meandelaybig))
+% %         hold on 
+% %         plot ((meandelaybig-meandelayshort)/2,9,'MarkerIndices','*')
+% %         hold off
+% %     end
+% % else 
+% %     plot (meandelaybig:meandelayshort,9*ones(meandelaybig:meandelayshort))
+% %         hold on 
+% %         plot ((abs(meandelaybig-meandelayshort))/2,9,'MarkerIndices','*')
+% %         hold off
+% % end
+% title('histogram of Firingrate for global and Local ','Color','k')
+% % legend (['P-value = ' num2str(p)],'Color','white')
+% xlabel('Firing rate','Color','k')
+% % Get the handle to the legend object
+% % legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+% legend_handle = legend('Global',['Mean Global = ' num2str(meanfiringRateGlobZscored)],'Local',['Mean Local = ' num2str(meanfiringRateLoczscored)]); 
+% 
+% % Set the text color to white
+% set(legend_handle, 'TextColor', 'k')
+% text('FontSize', 20, 'Color', 'k', 'Position', [1.5, 2],'String',['p-value = ' num2str(p)]);
+% hold off
+
+%
+figure
+nbin=15;
+histogram(BigMIcat,nbin,'FaceColor','b','Normalization','probability')
+xline (meanMIBig,'Color','b','LineWidth',2,'LineStyle','--')
+% set(gca,'fontsize',16,'color',[1 1 1])
+% set(groot, 'defaultFigureColor', [ 1 1 1]);
+% set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [ 0 0 0], 'defaultAxesZColor', [0 0 0 ]);
+hold on
+histogram (ShortMIcat,nbin,'FaceColor','r','Normalization','probability')
+xline(meanMIShort,'color','r','LineWidth',2,'LineStyle','--')
+% if p < 0.05
+%     if meandelaybig > meandelayshort
+%         plot (meandelayshort:meandelaybig,9*ones(meandelayshort:meandelaybig))
+%         hold on 
+%         plot ((meandelaybig-meandelayshort)/2,9,'MarkerIndices','*')
+%         hold off
+%     end
+% else 
+%     plot (meandelaybig:meandelayshort,9*ones(meandelaybig:meandelayshort))
+%         hold on 
+%         plot ((abs(meandelaybig-meandelayshort))/2,9,'MarkerIndices','*')
+%         hold off
+% end
+title('MI of singles and doubles top ','Color','k','FontSize',20)
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('MI','Color','k','FontSize',20)
+ylabel('P','FontSize',20)
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Double',['Mean Double = ' num2str(meanMIBig)],'Single',['Mean Single = ' num2str(meanMIShort)]); 
+
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+text('FontSize', 12, 'Color', 'k', 'Position', [18, 0.2],'String',['p-value = ' num2str(p)]);
+hold off
+axis    square
+
+% box plot 
+
+myData = transpose( [BigMIcat ; ShortMIcat] );
+figure
+boxplot(myData,'PlotStyle','traditional','Notch','on','Colors','k','Labels',{'Big','Short'},'BoxStyle','outline','MedianStyle','line')
+hold on
+
+plot(ones(size(myData,1),1),myData(:,1),'ob','MarkerFaceColor','b')
+plot(2*ones(size(myData,1),1),myData(:,2),'or','MarkerFaceColor','r')
+
+ylabel('MI','color','k')
+
+annotation('textbox', [0.15, 0.4, 0.2, 0.1], 'String', ['p-value = ' num2str(p)], 'FontSize', 12,'FitBoxToText','on');
+annotation('textbox', [0.15, 0.3, 0.2, 0.1], 'String', ['Mean MI Global = ' num2str(meanMIBig)], 'FontSize', 12,'FitBoxToText','on');
+annotation('textbox', [0.15, 0.2, 0.2, 0.1], 'String', ['Mean MI Local = ' num2str(meanMIShort)], 'FontSize', 12,'FitBoxToText','on');
+
+title(' Modulation index  for global and Local ','Color','k')
+% Get the handle of the boxplot object
+% bp = gca;
+% children = bp.Children;
+% hBoxes = children(end-1); % The last child is the boxplot object
+
+% Change the box face color and box edge color to white
+% set(hBoxes, 'BoxFaceColor', [1 1 1]);
+% set(hBoxes, 'BoxEdgeColor', [1 1 1]);
+
+% Add text to the box plot
+
+% title('boxplot of Modulation index  for global and Local ','Color','k')
+
+% text('FontSize', 20, 'Color', 'k', 'Position', [1.5, 50],'String',['p-value = ' num2str(p)]);
+
+hold off
+
+% plot campares for all session in a linear axes 
+globMax = max(BigMIcat);
+ShortMax = max(ShortMIcat);
+
+glob_min = min(BigMIcat);
+short_min = min(ShortMIcat);
+if globMax > ShortMax
+    limitationBand = globMax;
+else 
+    limitationBand = ShortMax;
+end
+if glob_min < short_min
+    downBand = glob_min;
+else 
+    downBand = short_min;
+end
+
+% limitationBand = max(round(meanAmpGlobindi) || round(meanAmpLocindi));
+
+x = downBand:0.001:limitationBand;y = x;
+figure
+plot ( x,y,'Color','k','LineWidth',2)
+hold on 
+plot (BigMIcat,ShortMIcat,'Ok','MarkerSize',5)
+title ('Double MI base on single MI ','FontSize',20)
+xlabel('double','FontSize',20)
+ylabel('single','FontSize',20)
+axis square
+%% save figures
+% Get the path to the directory where you want to save the figures
+
+save_path = 'D:\daniel\compares figures\so';
+% Get handles of all open figures
+        fig_list = findobj('Type','figure');
+                        
+%         Maximize each figure
+        for n = 1:length(fig_list)
+            set(figures(n),'WindowState','maximized');
+        end
+% %         
+% Save each figure to the specified path
+for i = 1:length(fig_list)
+    fig = fig_list(i);
+    saveas(fig, fullfile(save_path, sprintf('figure_%d.png', i)));
+    saveas(fig, fullfile(save_path, sprintf('figure_%d.fig', i)));
+
+end
+
+
+
+
