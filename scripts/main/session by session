@@ -1,0 +1,1726 @@
+
+%% Statistical Comparison of Neural Activity Features
+% This script compares multiple neural activity features between two event
+% categories (e.g., global vs. local spindles, single vs. double SOs).
+% For each recording session, it calculates summary statistics, performs
+% significance testing (t-tests and circular statistics), and visualizes
+% the results using histograms, polar plots, and session-wise comparison
+% scatter plots. The analyzed features include amplitude, duration,
+% firing rate, modulation index (MI), and phase-amplitude coupling (PAC).
+
+
+clc 
+clear 
+close all
+
+%% amplitude compare
+
+
+% Define paths
+pathsAmp = dir('*/sepratedSpindles*');
+[nRaws, ~] = size(pathsAmp);
+
+meanAmpGlobindi = zeros(1,nRaws);
+
+meanAmpLocindi = zeros(1,nRaws);
+% GlobAmpcat = [];
+% LocAmpcat = [];
+count = 0;
+for k = 1:nRaws
+%     filename = strcat(pathsAmp(k).folder, filesep, pathsAmp(k).name); % Use filesep instead of just '/'
+%     data = load(filename);
+%     Gobal =['data.sepratedSpindles',num2str(sessionNumber(k)),'.globalPeaks'];
+%     GlobalData = eval(Gobal);
+%     GlobAmpcat = [GlobAmpcat , GlobalData(1,:)];
+GlobAmpcat = [];
+LocAmpcat = [];
+    load (['sepratedSpindles' num2str(k) '.mat'])
+    ref = getRefSpindleChannel(sepratedSpindles.sepratedSpindles.referencChannel(1,1) );
+     GlobalDatazscored= sepratedSpindles.sepratedSpindles.globalSPindles (2,ref);
+     LocalDataZscored = sepratedSpindles.sepratedSpindles.localSPindles (2,ref);
+      GlobAmp= GlobalDatazscored{1,1};
+    LocAmp = LocalDataZscored{1,1};
+    GlobAmpcat = GlobAmp(1,:);
+
+    meanAmpGlobindi(k) = mean(GlobAmp(1,:));
+%     Local =['data.sepratedSpindles',num2str(sessionNumber(k)),'.LocalPeaks'];
+%     LocalData = eval(Local);
+    meanAmpLocindi(k) = mean(LocAmp(1,:));
+    LocAmpcat = LocAmp(1,:);
+
+
+% t-test
+meanAmpGlob = mean(GlobAmpcat);
+meanAmpLoc = mean(LocAmpcat);
+
+
+% Perform t-test
+[h, p] = ttest2(GlobAmpcat , LocAmpcat);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean firing rate for Global is ' num2str(meanAmpGlob)]);
+    disp(['mean firing rate for Local is ' num2str(meanAmpLoc)]);
+    fprintf('There is a significant difference between the means.\n');
+    count = count+1;
+    ch_mag(k) = k;
+else
+    disp(['mean firing rate for Gloal is ' num2str(meanAmpGlob)]);
+    disp(['mean firing rate for Local is ' num2str(meanAmpLoc)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+
+%plot
+
+
+figure
+nbin=50;
+histogram(GlobAmpcat,nbin,'FaceColor','b','Normalization','probability')
+[Nglob, globEdge] = histcounts(GlobAmpcat);
+xline (meanAmpGlob,'Color','b','LineWidth',2,'LineStyle','--')
+hold on
+histogram (LocAmpcat,nbin,'FaceColor','r','Normalization','probability')
+[Nloc, LocEdge] = histcounts(LocAmpcat);
+xline(meanAmpLoc,'color','r','LineWidth',2,'LineStyle','--')
+
+title(['histogram of amplitude for global and Local foe session ' num2str(k)],'Color','k')
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('Amplitude','Color','k')
+ylabel('P')
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Global',['Mean Global = ' num2str(meanAmpGlob)],...
+    'Local',['Mean Local = ' num2str(meanAmpLoc)],['P-value =' num2str(p)]); 
+
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+histdim = [max(LocEdge)/1.25 0.05];
+text('FontSize', 12, 'Color', 'k', 'Position', histdim,'String',['p-value = ' num2str(p)]);
+hold off
+axis square
+end
+
+mag_per = (count/nRaws)*100;
+temp =[];
+temp = find(ch_mag==0);
+ch_mag(temp)=[];
+magnificent.amplitude_compare_spi = mag_per;
+magnificent.amplitude_compare_spi_se = ch_mag;
+
+%% plot campares for all session in a linear axes 
+globMax = max(meanAmpGlobindi);
+ShortMax = max(meanAmpLocindi);
+glob_min = min(meanAmpGlobindi);
+short_min = min (meanAmpLocindi);
+globMax(globMax>3)=[];
+ShortMax(ShortMax>3)=[];
+
+if globMax > ShortMax
+    limitationBand = globMax;
+else 
+    limitationBand = ShortMax;
+end
+if glob_min < short_min
+    downBand = glob_min;
+else 
+    downBand = short_min;
+end
+
+% limitationBand = max(round(meanAmpGlobindi) || round(meanAmpLocindi));
+
+x = downBand:0.001:limitationBand;
+y = x;
+figure
+plot ( x,y,'Color','k','LineWidth',2)
+hold on 
+plot (meanAmpGlobindi,meanAmpLocindi,'Ok','MarkerSize',5)
+title ('Mean Global amplitudes base on  Mean Local amplitudes','FontSize',20)
+xlabel('Global','FontSize',20)
+ylabel('local','FontSize',20)
+axis square
+
+
+%% duration compare 
+
+
+% Define paths
+pathsDuration = dir('*/sepratedSpindles*');
+[nRaws, ~] = size(pathsDuration);
+
+meanDurationGlobindi = zeros(1,nRaws);
+
+meanDurationLocindi = zeros(1,nRaws);
+count = 0;
+ch_mag =zeros(1,nRaws);
+for k = 1:nRaws
+%     filename = strcat(pathsDuration(k).folder, filesep, pathsDuration(k).name); % Use filesep instead of just '/'
+%     data = load(filename);
+%     Gobal =['data.sepratedSpindles',num2str(sessionNumber(k)),'.globalSPindles'];
+%     GlobalData = eval(Gobal);
+    load (['sepratedSpindles' num2str(k) '.mat'])
+% duration for globals 
+GlobDurationcat = [];
+LocDurationcat = [];
+    ref = getRefSpindleChannel(sepratedSpindles.sepratedSpindles.referencChannel(1,1) );
+    GlobalDatazscored= sepratedSpindles.sepratedSpindles.globalSPindles (1,ref);
+     LocalDataZscored = sepratedSpindles.sepratedSpindles.localSPindles (1,ref);
+      Glob = GlobalDatazscored{1, 1} ;
+      Local = LocalDataZscored{1 ,1} ;
+    onsetGlob = transpose(Glob(:,1));
+    offsetGlob = transpose(Glob(:,3));
+    durationGlob = offsetGlob - onsetGlob ;
+
+%     GlobDurationcat = [GlobDurationcat , durationGlob];
+    meanDurationGlobindi(k) = mean(durationGlob);
+%     Local =['data.sepratedSpindles',num2str(sessionNumber(k)),'.localSPindles'];
+%     LocalData = eval(Local);
+    % duration for locals 
+
+    onsetLoc = transpose(Local(:,1));
+    offsetLoc = transpose(Local(:,3));
+    durationLoc = offsetLoc - onsetLoc ;
+
+    meanDurationLocindi(k) = mean( durationLoc);
+%     LocDurationcat = [LocDurationcat , durationLoc];
+
+
+% compute means
+
+meanDurationGlob = mean(durationGlob);
+meanDurationLoc = mean(durationLoc);
+
+
+% Perform t-test
+[h, p] = ttest2(durationGlob,durationLoc);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean duration for GLobal ratio is ' num2str(meanDurationGlob)]);
+    disp(['mean duration for Local ratio is ' num2str(meanDurationLoc)]);
+    fprintf('There is a significant difference between the means.\n');
+        count = count+1;
+    ch_mag(k) = k;
+
+else
+    disp(['mean duration for GLobal ratio is ' num2str(meanDurationGlob)]);
+    disp(['mean duration for Local ratio is ' num2str(meanDurationLoc)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+
+%plot 
+
+figure
+nbin=10;
+histogram(durationGlob,nbin,'FaceColor','b','Normalization','probability')
+xlabel('Duration(s)')
+ylabel('P')
+xline (meanDurationGlob,'Color','b','LineWidth',2,'LineStyle','--')
+[Nglob, globEdge] = histcounts(durationGlob);
+
+% set(gca,'fontsize',16,'color',[1 1 1])
+% set(groot, 'defaultFigureColor', [1 1 1]);
+% set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+hold on
+histogram (durationLoc,nbin,'FaceColor','r','Normalization','probability')
+[Nloc, LocEdge] = histcounts(durationLoc);
+
+xline(meanDurationLoc,'color','r','LineWidth',2,'LineStyle','--')
+% if p < 0.05
+%     if meandelaybig > meandelayshort
+%         plot (meandelayshort:meandelaybig,9*ones(meandelayshort:meandelaybig))
+%         hold on 
+%         plot ((meandelaybig-meandelayshort)/2,9,'MarkerIndices','*')
+%         hold off
+%     end
+% else 
+%     plot (meandelaybig:meandelayshort,9*ones(meandelaybig:meandelayshort))
+%         hold on 
+%         plot ((abs(meandelaybig-meandelayshort))/2,9,'MarkerIndices','*')
+%         hold off
+% end
+title(['histogram of global and Local duration for session ' num2str(k)],'Color','k')
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('duration','Color','k')
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Global',['Mean Global = ' num2str(meanDurationGlob)],'Local',['Mean Local = ' num2str(meanDurationLoc)]); 
+histdim = [max(LocEdge)/1.25 0.05];
+
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+text('FontSize', 12, 'Color', 'k', 'Position', histdim,'String',['p-value = ' num2str(p)]);
+hold off
+axis square
+end
+mag_per = (count/nRaws)*100;
+temp =[];
+temp = find(ch_mag==0);
+ch_mag(temp)=[];
+magnificent.duration_compare_spi = mag_per;
+magnificent.duration_compare_spi_se = ch_mag;
+
+%% plot campares for all session in a linear axes 
+globMax = max(meanDurationGlobindi);
+ShortMax = max(meanDurationLocindi);
+glob_min = min(meanDurationGlobindi);
+short_min = min(meanDurationLocindi);
+if globMax > ShortMax
+    limitationBand = globMax;
+else 
+    limitationBand = ShortMax;
+end
+if glob_min < short_min
+    downBand = glob_min;
+else 
+    downBand = short_min;
+end
+
+% limitationBand = max(round(meanAmpGlobindi) || round(meanAmpLocindi));
+
+x = downBand:0.001:limitationBand;
+y = x;
+figure
+plot ( x,y,'Color','k','LineWidth',2)
+hold on 
+plot (meanDurationGlobindi,meanDurationLocindi,'Ok','MarkerSize',5)
+title ('Mean Global duration base on  Mean Local duration')
+xlabel('Global')
+ylabel('local')
+axis square
+%% firing rate 
+
+% Define paths
+pathsFR = dir('*/FRspindles*');
+[nRaws, nColumns] = size(pathsFR);
+% 
+meanFRGlobindi = zeros(1,nRaws);
+% 
+meanFRLocindi = zeros(1,nRaws);
+GlobFRcatzscored = [];
+LocFRcatzscored = [];
+fs=1250;
+count = 0;
+ch_mag =zeros(1,nRaws);
+for k = 1:nRaws
+%     filename = strcat(pathsFR(k).folder, filesep, pathsFR(k).name); % Use filesep instead of just '/'
+% meanFRLocindicell =[];
+% meanFRGlobindicell =[];
+GlobFRcat =[];
+LocFRcat =[];
+
+    load (['SpikesBaseOnLocation' num2str(k) '.mat']);
+     temp = [];
+    spikes_sws= SpikesBaseOnLocation.SpikesBaseOnLocation.Thalamus;
+    for j=1:size(spikes_sws,1)
+        sp = find(spikes_sws(j,:)==1);
+        FR = length(sp)/(length(spikes_sws(j,:))/fs);
+        if FR<0.5
+            temp = [temp j];
+        end
+    end
+    spikes_sws(temp,:)=[];
+    SpikesBaseOnLocation.SpikesBaseOnLocation.ThalamousshankIDs(temp) = [];
+
+    for i=1:length(SpikesBaseOnLocation.SpikesBaseOnLocation.ThalamousshankIDs)
+        load (['GlobalCellsInformation' num2str(k)  '.mat'])
+        load (['LocalCellsInformation' num2str(k)  '.mat'])
+        GlobalDatazscored = GlobalCellsInformation.meanfiringRateGlobIndZscored (1,:);
+        GlobalData = GlobalCellsInformation.meanfiringRateGlobInd(1,:);
+        GlobFRcat = [GlobFRcat ,  GlobalData];
+%       meanFRGlobindicell(i) = mean( GlobalData);
+        LocalDataZscored =LocalCellsInformation.meanfiringRateLocalIndZscored(1,:);
+        LocalData = LocalCellsInformation.meanfiringRateLocalInd(1,:);
+%             meanFRLocindicell(i) = mean( LocalData);
+            LocFRcat = [LocFRcat , LocalData];
+
+    end
+    
+%     data = load(filename);
+%     Gobal =['data.FiringrateSpindles',num2str(sessionNumber(k)),'.Global'];
+%     GlobalData = eval(Gobal);
+
+%     GlobFRcatzscored = [GlobFRcatzscored ,  GlobalDatazscored];
+%     GlobFRcat =[GlobFRcat , GlobalData];
+    meanFRGlobindi(k) = mean( GlobFRcat);
+%     Local =['data.FiringrateSpindles',num2str(sessionNumber(k)),'.Local'];
+%     LocalData = eval(Local);
+    
+    meanFRLocindi(k) = mean( LocFRcat);
+%     LocFRcatzscored = [LocFRcatzscored , LocalDataZscored];
+meanfiringRateGlob = mean (GlobFRcat);
+meanfiringRateLoc = mean(LocFRcat);
+
+% Perform t-test
+[h, p] = ttest(GlobFRcat, LocFRcat);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean firing rate for Global is ' num2str(meanfiringRateGlob)]);
+    disp(['mean firing rate for Local is ' num2str(meanfiringRateLoc)]);
+    fprintf('There is a significant difference between the means.\n');
+        count = count+1;
+    ch_mag(k) = k;
+
+else
+    disp(['mean firing rate for Global is ' num2str(meanfiringRateGlob)]);
+    disp(['mean firing rate for Local is ' num2str(meanfiringRateLoc)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+
+%plot 
+
+figure
+nbin=20;
+histogram(GlobFRcat,nbin,'FaceColor','b','Normalization','probability')
+[Nglob, globEdge] = histcounts(durationGlob);
+
+xline (meanfiringRateGlob,'Color','b','LineWidth',2,'LineStyle','--')
+% set(gca,'fontsize',16,'color',[1 1 1])
+% set(groot, 'defaultFigureColor', [ 1 1 1]);
+% set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [ 0 0 0], 'defaultAxesZColor', [0 0 0 ]);
+hold on
+histogram (LocFRcat,nbin,'FaceColor','r','Normalization','probability')
+[Nloc, LocEdge] = histcounts(durationLoc);
+
+xline(meanfiringRateLoc,'color','r','LineWidth',2,'LineStyle','--')
+% if p < 0.05
+%     if meandelaybig > meandelayshort
+%         plot (meandelayshort:meandelaybig,9*ones(meandelayshort:meandelaybig))
+%         hold on 
+%         plot ((meandelaybig-meandelayshort)/2,9,'MarkerIndices','*')
+%         hold off
+%     end
+% else 
+%     plot (meandelaybig:meandelayshort,9*ones(meandelaybig:meandelayshort))
+%         hold on 
+%         plot ((abs(meandelaybig-meandelayshort))/2,9,'MarkerIndices','*')
+%         hold off
+% end
+title(['histogram of global and Local Firingrate for session ' num2str(k)],'Color','k')
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('Firing rate','Color','k')
+ylabel('P')
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Global',['Mean Global = ' num2str(meanfiringRateGlob)],'Local',['Mean Local = ' num2str(meanfiringRateLoc)]); 
+histdim = [max(LocEdge)/1.05 0.05];
+
+% Set the text color to white
+% set(legend_handle, 'TextColor', 'k')
+text('FontSize', 12, 'Color', 'k', 'Position', histdim,'String',['p-value = ' num2str(p)]);
+hold off
+% 
+% %
+% figure
+% nbin=15;
+% histogram(GlobFRcat,nbin,'FaceColor','b')
+% xline (meanfiringRateGlob,'Color','b','LineWidth',2,'LineStyle','--')
+% set(gca,'fontsize',16,'color',[1 1 1])
+% set(groot, 'defaultFigureColor', [ 1 1 1]);
+% set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [ 0 0 0], 'defaultAxesZColor', [0 0 0 ]);
+% hold on
+% histogram (LocFRcat,nbin,'FaceColor','r')
+% xline(meanfiringRateLoc,'color','r','LineWidth',2,'LineStyle','--')
+% % if p < 0.05
+% %     if meandelaybig > meandelayshort
+% %         plot (meandelayshort:meandelaybig,9*ones(meandelayshort:meandelaybig))
+% %         hold on 
+% %         plot ((meandelaybig-meandelayshort)/2,9,'MarkerIndices','*')
+% %         hold off
+% %     end
+% % else 
+% %     plot (meandelaybig:meandelayshort,9*ones(meandelaybig:meandelayshort))
+% %         hold on 
+% %         plot ((abs(meandelaybig-meandelayshort))/2,9,'MarkerIndices','*')
+% %         hold off
+% % end
+% title('histogram of Firingrate for global and Local ','Color','k')
+% % legend (['P-value = ' num2str(p)],'Color','white')
+% xlabel('Firing rate','Color','k')
+% % Get the handle to the legend object
+% % legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+% legend_handle = legend('Global',['Mean Global = ' num2str(meanfiringRateGlob)],'Local',['Mean Local = ' num2str(meanfiringRateLoc)]); 
+% histdim = [max(LocEdge)/1.25 0.05];
+% 
+% % Set the text color to white
+% set(legend_handle, 'TextColor', 'k')
+% text('FontSize', 20, 'Color', 'k', 'Position', [1.5, 2],'String',['p-value = ' num2str(p)]);
+% hold off
+axis square
+end
+% compute means
+
+% meanfiringRateGlobZscored = mean(GlobFRcatzscored);
+% meanfiringRateLoczscored = mean(LocFRcatzscored);
+
+
+
+% % Perform t-test
+% [h, p] = ttest(GlobFRcatzscored, LocFRcatzscored);
+% 
+% % Display results
+% if isnan(h)
+%     disp('Error in performing t-test.');
+% elseif h
+%     disp(['mean firing rate for Global is ' num2str(meanfiringRateGlob)]);
+%     disp(['mean firing rate for Local is ' num2str(meanfiringRateLoc)]);
+%     fprintf('There is a significant difference between the means.\n');
+% else
+%     disp(['mean firing rate for Global is ' num2str(meanfiringRateGlob)]);
+%     disp(['mean firing rate for Local is ' num2str(meanfiringRateLoc)]);
+%     fprintf('There is no significant difference between the means.\n');
+% end
+% fprintf('p-value: %.4f\n', p);
+mag_per = (count/nRaws)*100;
+temp =[];
+temp = find(ch_mag==0);
+ch_mag(temp)=[];
+magnificent.firingrate_compare_spi = mag_per;
+magnificent.firingrate_compare_spi_se = ch_mag;
+
+%% plot campares for all session in a linear axes 
+globMax = max(meanFRGlobindi);
+glob_min = min(meanFRGlobindi);
+ShortMax = max(meanFRLocindi);
+short_min = min(meanFRLocindi);
+if globMax > ShortMax
+    limitationBand = globMax;
+else 
+    limitationBand = ShortMax;
+end
+if glob_min < short_min
+    downBand = glob_min;
+else 
+    downBand = short_min;
+end
+
+% limitationBand = max(round(meanAmpGlobindi) || round(meanAmpLocindi));
+
+x = downBand:0.001:limitationBand;
+y = x;
+figure
+plot ( x,y,'Color','k','LineWidth',2)
+hold on 
+plot (meanFRGlobindi,meanFRLocindi,'Ok','MarkerSize',5)
+title ('Global firing rate base on Loval firing rate ')
+xlabel('Global')
+ylabel('local')
+axis square
+%%  MI 
+% Define paths
+pathsFR = dir('*/FRspindles*');
+[nRaws, ~] = size(pathsFR);
+% 
+meanMIGlobindi = zeros(1,nRaws);
+% 
+meanMILocindi = zeros(1,nRaws);
+GlobMIcatzscored = [];
+% GlobMIcat =[];
+LocMIcatzscored = [];
+% LocMIcat =[];
+fs=1250;
+count = 0;
+ch_mag =zeros(1,nRaws);
+for k = 1:nRaws
+%     filename = strcat(pathsFR(k).folder, filesep, pathsFR(k).name); % Use filesep instead of just '/'
+% meanMILocindicell =[];
+% meanMIGlobindicell =[];
+GlobMIcat =[];
+LocMIcat =[];
+
+
+    load (['SpikesBaseOnLocation' num2str(k) '.mat']);
+     temp = [];
+    spikes_sws= SpikesBaseOnLocation.SpikesBaseOnLocation.Thalamus;
+    for j=1:size(spikes_sws,1)
+        sp = find(spikes_sws(j,:)==1);
+        FR = length(sp)/(length(spikes_sws(j,:))/fs);
+        if FR<0.5
+            temp = [temp j];
+        end
+    end
+    spikes_sws(temp,:)=[];
+    SpikesBaseOnLocation.SpikesBaseOnLocation.ThalamousshankIDs(temp) = [];
+
+    for i=1:length(SpikesBaseOnLocation.SpikesBaseOnLocation.ThalamousshankIDs)
+        load (['GlobalCellsInformation' num2str(k)  '.mat'])
+        load (['LocalCellsInformation' num2str(k)  '.mat'])
+%         GlobalDatazscored = GlobalCellsInformation.MIglobalIndivisually   (1,:);
+        GlobalData = GlobalCellsInformation.MIglobalIndivisually(1,:);
+        GlobMIcat = [GlobMIcat ,  GlobalData];
+%       meanFRGlobindicell(i) = mean( GlobFRcat);
+%         LocalDataZscored = LocalCellsInformation.meanfiringRateLocalIndZscored(1,:);
+        LocalData = LocalCellsInformation.MILocalIndivisually(1,:);
+            LocMIcat = [LocMIcat , LocalData];
+
+%             meanFRLocindicell(i) = mean( LocMIcat);
+
+    end
+    
+%     data = load(filename);
+%     Gobal =['data.FiringrateSpindles',num2str(sessionNumber(k)),'.Global'];
+%     GlobalData = eval(Gobal);
+
+%     GlobFRcatzscored = [GlobFRcatzscored ,  GlobalDatazscored];
+%     GlobMIcat =[GlobMIcat , GlobalData];
+    meanMIGlobindi(k) = mean( GlobMIcat);
+%     Local =['data.FiringrateSpindles',num2str(sessionNumber(k)),'.Local'];
+%     LocalData = eval(Local);
+    
+    meanMILocindi(k) = mean( LocMIcat);
+%     LocFRcatzscored = [LocFRcatzscored , LocalDataZscored];
+%     LocMIcat = [LocMIcat , LocalData];
+meanMIGlob = mean (GlobMIcat);
+meanMILoc = mean(LocMIcat);
+% Perform t-test
+[h, p] = ttest(GlobMIcat, LocMIcat);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean MI for Global is ' num2str(meanMIGlob)]);
+    disp(['mean MI for Local is ' num2str(meanMILoc)]);
+    fprintf('There is a significant difference between the means.\n');
+        count = count+1;
+    ch_mag(k) = k;
+
+else
+    disp(['mean MI for Global is ' num2str(meanMIGlob)]);
+    disp(['mean MI for Local is ' num2str(meanMILoc)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+%plot
+figure
+nbin=15;
+histogram(GlobMIcat,nbin,'FaceColor','b','Normalization','probability')
+[Nglob, globEdge] = histcounts(GlobMIcat);
+
+xline (meanMIGlob,'Color','b','LineWidth',2,'LineStyle','--')
+% set(gca,'fontsize',16,'color',[1 1 1])
+% set(groot, 'defaultFigureColor', [ 1 1 1]);
+% set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [ 0 0 0], 'defaultAxesZColor', [0 0 0 ]);
+hold on
+histogram (LocMIcat,nbin,'FaceColor','r','Normalization','probability')
+[Nloc, LocEdge] = histcounts(LocMIcat);
+
+xline(meanMILoc,'color','r','LineWidth',2,'LineStyle','--')
+title(['histogram of global and Local MI for session ' num2str(k)],'Color','k')
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('Firing rate','Color','k')
+ylabel('P')
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Global',['Mean Global = ' num2str(meanMIGlob)],'Local',['Mean Local = ' num2str(meanMILoc)]); 
+
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+histdim = [max(LocEdge)/1.05 0.05];
+
+text('FontSize', 12, 'Color', 'k', 'Position',histdim,'String',['p-value = ' num2str(p)]);
+hold off
+
+end
+mag_per = (count/nRaws)*100;
+temp =[];
+temp = find(ch_mag==0);
+ch_mag(temp)=[];
+magnificent.MI_compare_spi = mag_per;
+magnificent.MI_compare_spi_se = ch_mag;
+axis square
+%% plot campares for all session in a linear axes 
+globMax = max(GlobMIcat);
+ShortMax = max(LocMIcat);
+
+glob_min = min(GlobMIcat);
+short_min = min(LocMIcat);
+if globMax > ShortMax
+    limitationBand = globMax;
+else 
+    limitationBand = ShortMax;
+end
+if glob_min < short_min
+    downBand = glob_min;
+else 
+    downBand = short_min;
+end
+
+% limitationBand = max(round(meanAmpGlobindi) || round(meanAmpLocindi));
+
+x = downBand:0.001:limitationBand;y = x;
+figure
+plot ( x,y,'Color','k','LineWidth',2)
+hold on 
+plot (GlobMIcat,LocMIcat,'Ok','MarkerSize',5)
+title ('Global MI base on Local MI ')
+xlabel('Global')
+ylabel('local')
+axis square
+%% PAC SO_spindle
+% load PAC_featuresAll.mat
+% bigPac = PAC_featuresAll.MeanPacPhaseBig    ;
+% ShortPac = PAC_featuresAll.MeanPacPhaseshort  ;
+% meanModuIndexGlob = mean(bigPac);
+% meanModuIndexLoc = mean(ShortPac);
+
+pathsAmp = dir('*/sepratedSpindles*');
+[nRaws, ~] = size(pathsAmp);
+
+count = 0;
+count1=0;
+ch_mag1 =zeros(1,nRaws);
+ch_mag = zeros(1,nRaws);
+% GlobPACcat = [];
+% LocPACcat = [];
+for k = 1:nRaws
+    GlobPAC =[];
+    LocPAC =[];
+%     filename = strcat(pathsAmp(k).folder, filesep, pathsAmp(k).name); % Use filesep instead of just '/'
+%     data = load(filename);
+%     Gobal =['data.sepratedSpindles',num2str(sessionNumber(k)),'.globalPeaks'];
+%     GlobalData = eval(Gobal);
+%     GlobAmpcat = [GlobAmpcat , GlobalData(1,:)];
+    load (['PAC_features' num2str(k) '.mat'])
+%     ref = getRefSpindleChannel(sepratedSpindles.sepratedSpindles.referencChannel(1,1) );
+%      GlobalDatazscored= sepratedSpindles.sepratedSpindles.globalSPindles (2,ref);
+%      LocalDataZscored = sepratedSpindles.sepratedSpindles.localSPindles (2,ref);
+      GlobPAC= PAC_features.angleBig ;
+    LocPAC = PAC_features.angleShort;
+%     GlobPACcat = [GlobPACcat , GlobPAC(1,:)];
+meanGlobPAC(k) = circ_mean(GlobPAC);
+meanLocPAC(k) = circ_mean(LocPAC);
+meanModuIndexGlob = circ_mean(GlobPAC);
+meanModuIndexLoc = circ_mean(LocPAC);
+
+[pval, z] = circ_rtest(GlobPAC);
+% Display results
+if pval < 0.05
+    disp(['P-value is =   ' num2str(pval)]);
+%     disp(['mean phase of PAC for short is ' num2str(meanModuIndexLoc)]);
+    fprintf('phase distribution is not uniform \n');
+        count1 = count+1;
+    ch_mag1(k) = k;
+
+else
+    disp(['P-value is =   ' num2str(pval)]);
+%     disp(['mean phase of PAC rate for short is ' num2str(meanModuIndexLoc)]);
+    fprintf('phase distribution is uniform \n');
+end
+% fprintf('p-value: %.4f\n', p);
+
+%plot
+nbin=50;
+figure
+subplot(1,2,1)
+polarhistogram(GlobPAC,nbin,'FaceColor','r','Normalization','probability')
+hold on 
+min_max_r = rlim;
+polarplot([meanModuIndexGlob meanModuIndexGlob],min_max_r,'-.k','LineWidth',2)
+legend('distribution',['mean = ' num2str(meanModuIndexGlob)])
+title(['circular histogram of PAC for double top in session ' num2str(k)])
+text('FontSize', 12, 'Color', 'k', 'Position',[min_max_r(1)+25 min_max_r(2)],'String',['p-value = ' num2str(pval)]);
+[pval, z] = circ_rtest(LocPAC);
+% Display results
+count = 0;
+ch_mag =zeros(1,nRaws);
+if pval < 0.05
+    disp(['P-value is =   ' num2str(pval)]);
+%     disp(['mean phase of PAC for short is ' num2str(meanModuIndexLoc)]);
+    fprintf('phase distribution is not uniform \n');
+        count = count+1;
+    ch_mag(k) = k;
+
+
+else
+    disp(['P-value is =   ' num2str(pval)]);
+%     disp(['mean phase of PAC rate for short is ' num2str(meanModuIndexLoc)]);
+    fprintf('phase distribution is uniform \n');
+end
+% fprintf('p-value: %.4f\n', p);
+
+%plot
+subplot (1,2,2)
+polarhistogram(LocPAC,nbin,'FaceColor','b','Normalization','probability')
+hold on 
+min_max_r = rlim;
+polarplot([meanModuIndexLoc meanModuIndexLoc],min_max_r,'-.k','LineWidth',2)
+legend('distribution',['mean = ' num2str(meanModuIndexLoc)])
+title(['circular histogram of PAC for single top in session ' num2str(k)])
+text('FontSize', 12, 'Color', 'k', 'Position',[min_max_r(1)+25 min_max_r(2)],'String',['p-value = ' num2str(pval)]);
+
+
+%     meanAmpGlobindi(k) = mean(GlobAmp(1,:));
+%     Local =['data.sepratedSpindles',num2str(sessionNumber(k)),'.LocalPeaks'];
+%     LocalData = eval(Local);
+%     meanAmpLocindi(k) = mean(LocAmp(1,:));
+%     LocPACcat = [LocPACcat , LocPAC(1,:)];
+end
+
+mag_per = (count/nRaws)*100;
+temp =[];
+temp = find(ch_mag==0);
+ch_mag(temp)=[];
+magnificent.histogram_of_PAC_for_single_top = mag_per;
+magnificent.histogram_of_PAC_for_single_top_se = ch_mag;
+mag_per = (count1/nRaws)*100;
+temp =[];
+temp = find(ch_mag1==0);
+ch_mag1(temp)=[];
+magnificent.histogram_of_PAC_for_double_tops = mag_per;
+magnificent.histogram_of_PAC_for_double_tops_se = ch_mag;
+
+
+
+%% plot campares for all session in a linear axes 
+globMax = max(meanMIGlobindi);
+ShortMax = max(meanMILocindi);
+if globMax > ShortMax
+    limitationBand = globMax;
+else 
+    limitationBand = ShortMax;
+end
+% limitationBand = max(round(meanAmpGlobindi) || round(meanAmpLocindi));
+
+x = 0.00001:0.001:limitationBand;
+y = x;
+figure
+plot ( x,y,'Color','k','LineWidth',2)
+hold on 
+plot (meanMIGlobindi,meanMILocindi,'Ok','MarkerSize',5)
+title ('Phase of PAC for SO-spindles')
+xlabel('Double tops')
+ylabel('Single top ')
+axis square
+%%
+
+pathsAmp = dir('*/sepratedSpindles*');
+[nRaws, ~] = size(pathsAmp);
+
+
+GlobStrPACcat = [];
+LocStrPACcat = [];
+count = 0;
+ch_mag =zeros(1,nRaws);
+for k = 1:nRaws
+%     filename = strcat(pathsAmp(k).folder, filesep, pathsAmp(k).name); % Use filesep instead of just '/'
+%     data = load(filename);
+%     Gobal =['data.sepratedSpindles',num2str(sessionNumber(k)),'.globalPeaks'];
+%     GlobalData = eval(Gobal);
+%     GlobAmpcat = [GlobAmpcat , GlobalData(1,:)];
+    load (['PAC_features' num2str(k) '.mat'])
+%     ref = getRefSpindleChannel(sepratedSpindles.sepratedSpindles.referencChannel(1,1) );
+%      GlobalDatazscored= sepratedSpindles.sepratedSpindles.globalSPindles (2,ref);
+%      LocalDataZscored = sepratedSpindles.sepratedSpindles.localSPindles (2,ref);
+      GlobStrPAC = PAC_features.strengthBig   ;
+    LocStrPAC = PAC_features.strengthShort;
+%     GlobStrPACcat = [GlobStrPACcat , GlobStrPAC(1,:)];
+
+    meanAmpGlobindi(k) = mean(GlobStrPAC(1,:));
+%     Local =['data.sepratedSpindles',num2str(sessionNumber(k)),'.LocalPeaks'];
+%     LocalData = eval(Local);
+    meanAmpLocindi(k) = mean(LocStrPAC(1,:));
+%     LocStrPACcat = [LocStrPACcat , LocStrPAC(1,:)];
+    meanModuIndexGlob = mean(GlobStrPAC);
+    meanModuIndexLoc = mean(LocStrPAC);
+    [h, p] = ttest2(GlobStrPAC , LocStrPAC);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean strength of PAC for big is ' num2str(meanModuIndexGlob)]);
+    disp(['mean strength of PAC for short is ' num2str(meanModuIndexLoc)]);
+    fprintf('There is a significant difference between the means.\n');
+        count = count+1;
+    ch_mag(k) = k;
+
+else
+    disp(['mean strength of PAC for big is ' num2str(meanModuIndexGlob)]);
+    disp(['mean strength of PAC rate for short is ' num2str(meanModuIndexLoc)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+%plot
+
+
+figure
+nbin=50;
+histogram(GlobStrPAC,nbin,'FaceColor','r','Normalization','probability')
+[Nglob, globEdge] = histcounts(GlobStrPAC);
+
+xline (meanModuIndexGlob,'Color','b','LineWidth',2,'LineStyle','--')
+hold on
+histogram (LocStrPAC,nbin,'FaceColor','b','Normalization','probability')
+[Nloc, LocEdge] = histcounts(LocStrPAC);
+
+xline(meanModuIndexLoc,'color','r','LineWidth',2,'LineStyle','--')
+
+title(['histogram strength of PAC between SOs and spindles' num2str(k)],'Color','k')
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('PAC','Color','k')
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Big',['Mean Big = ' num2str(meanModuIndexGlob)],'Short',['Mean Short = ' num2str(meanModuIndexLoc)]); 
+
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+histdim = [max(LocEdge)/1.05 0.05];
+
+text('FontSize', 12, 'Color', 'k', 'Position', histdim,'String',['p-value = ' num2str(p)]);
+hold off
+axis square
+end
+mag_per = (count/nRaws)*100;
+temp =[];
+temp = find(ch_mag==0);
+ch_mag(temp)=[];
+magnificent.histogram_strength_of_PAC_between_SOs_and_spindles = mag_per;
+magnificent.histogram_strength_of_PAC_between_SOs_and_spindles_se = ch_mag;
+
+%% plot campares for all session in a linear axes 
+globMax = max(meanAmpGlobindi);
+ShortMax = max(meanAmpLocindi);
+if globMax > ShortMax
+    limitationBand = globMax;
+else 
+    limitationBand = ShortMax;
+end
+% limitationBand = max(round(meanAmpGlobindi) || round(meanAmpLocindi));
+
+x = 0.00001:0.001:limitationBand;
+y = x;
+figure
+plot ( x,y,'Color','k','LineWidth',2)
+hold on 
+plot (meanAmpGlobindi,meanAmpLocindi,'Ok','MarkerSize',5)
+title ('Phase of PAC for SO-spindles')
+xlabel('Double tops')
+ylabel('Single top ')
+axis square
+%% PAC spindle - ripple
+
+pathsAmp = dir('*/sepratedSpindles*');
+[nRaws, ~] = size(pathsAmp);
+
+
+% GlobPACcat = [];
+% LocPACcat = [];
+count = 0;
+ch_mag =zeros(1,nRaws);
+count1 = 0;
+ch_mag1 =zeros(1,nRaws);
+for k = 1:nRaws
+    GlobPAC =[];
+    LocPAC =[];
+%     filename = strcat(pathsAmp(k).folder, filesep, pathsAmp(k).name); % Use filesep instead of just '/'
+%     data = load(filename);
+%     Gobal =['data.sepratedSpindles',num2str(sessionNumber(k)),'.globalPeaks'];
+%     GlobalData = eval(Gobal);
+%     GlobAmpcat = [GlobAmpcat , GlobalData(1,:)];
+    load (['PAC_features_spindles_SPWR' num2str(k) '.mat'])
+%     ref = getRefSpindleChannel(sepratedSpindles.sepratedSpindles.referencChannel(1,1) );
+%      GlobalDatazscored= sepratedSpindles.sepratedSpindles.globalSPindles (2,ref);
+%      LocalDataZscored = sepratedSpindles.sepratedSpindles.localSPindles (2,ref);
+      GlobPAC= PAC_features.angleglob ;
+    LocPAC =PAC_features.angleLoc;
+%     GlobPACcat = [GlobPACcat , GlobPAC(1,:)];
+meanGlobPAC(k) = circ_mean(GlobPAC);
+meanLocPAC(k) = circ_mean(LocPAC);
+meanModuIndexGlob = circ_mean(GlobPAC);
+meanModuIndexLoc = circ_mean(LocPAC);
+
+[pval, z] = circ_rtest(GlobPAC);
+% Display results
+if pval < 0.05
+    disp(['P-value is =   ' num2str(pval)]);
+%     disp(['mean phase of PAC for short is ' num2str(meanModuIndexLoc)]);
+    fprintf('phase distribution is not uniform \n');
+        count = count+1;
+    ch_mag(k) = k;
+
+else
+    disp(['P-value is =   ' num2str(pval)]);
+%     disp(['mean phase of PAC rate for short is ' num2str(meanModuIndexLoc)]);
+    fprintf('phase distribution is uniform \n');
+end
+% fprintf('p-value: %.4f\n', p);
+
+%plot
+nbin=50;
+figure
+subplot(1,2,1)
+polarhistogram(GlobPAC,nbin,'FaceColor','b','Normalization','probability')
+hold on 
+min_max_r = rlim;
+polarplot([meanModuIndexGlob meanModuIndexGlob],min_max_r,'-.k','LineWidth',2)
+legend('distribution',['mean = ' num2str(meanModuIndexGlob)])
+title(['circular histogram of PAC for gloobal in session ' num2str(k)])
+text('FontSize', 12, 'Color', 'k', 'Position',[min_max_r(1)+25 min_max_r(2)],'String',['p-value = ' num2str(pval)]);
+[pval, z] = circ_rtest(LocPAC);
+% Display results
+if pval < 0.05
+    disp(['P-value is =   ' num2str(pval)]);
+%     disp(['mean phase of PAC for short is ' num2str(meanModuIndexLoc)]);
+    fprintf('phase distribution is not uniform \n');
+        count1 = count+1;
+    ch_mag1(k) = k;
+
+else
+    disp(['P-value is =   ' num2str(pval)]);
+%     disp(['mean phase of PAC rate for short is ' num2str(meanModuIndexLoc)]);
+    fprintf('phase distribution is uniform \n');
+end
+% fprintf('p-value: %.4f\n', p);
+
+%plot
+subplot (1,2,2)
+polarhistogram(LocPAC,nbin,'FaceColor','r','Normalization','probability')
+hold on 
+min_max_r = rlim;
+polarplot([meanModuIndexLoc meanModuIndexLoc],min_max_r,'-.k','LineWidth',2)
+legend('distribution',['mean = ' num2str(meanModuIndexLoc)])
+title(['circular histogram of PAC for Local in session ' num2str(k)])
+text('FontSize', 12, 'Color', 'k', 'Position',[min_max_r(1)+25 min_max_r(2)],'String',['p-value = ' num2str(pval)]);
+
+
+end
+mag_per = (count/nRaws)*100;
+temp =[];
+temp = find(ch_mag==0);
+ch_mag(temp)=[];
+magnificent.circular_histogram_of_PAC_for_gloobal = mag_per;
+magnificent.circular_histogram_of_PAC_for_gloobal_se = ch_mag;
+mag_per = (count1/nRaws)*100;
+temp =[];
+temp = find(ch_mag1==0);
+ch_mag(temp)=[];
+magnificent.circular_histogram_of_PAC_for_Local = mag_per;
+magnificent.circular_histogram_of_PAC_for_Local_se = ch_mag;
+
+
+%% plot campares for all session in a linear axes 
+globMax = max(abs(meanGlobPAC));
+ShortMax = max(abs(meanLocPAC));
+if globMax > ShortMax
+    limitationBand = globMax;
+else 
+    limitationBand = ShortMax;
+end
+% limitationBand = max(round(meanAmpGlobindi) || round(meanAmpLocindi));
+
+x = -limitationBand:0.001:limitationBand;
+y = x;
+figure
+plot ( x,y,'Color','k','LineWidth',2)
+hold on 
+plot (meanGlobPAC,meanLocPAC,'Ok','MarkerSize',5)
+title ('Phase of PAC for spindle-SPWR')
+xlabel('Global tops')
+ylabel('Local top ')
+axis square
+%% strength spindle_SPWR
+pathsAmp = dir('*/sepratedSpindles*');
+[nRaws, ~] = size(pathsAmp);
+
+% 
+% GlobStrPACcat = [];
+% LocStrPACcat = [];
+for k = 1:nRaws
+%     filename = strcat(pathsAmp(k).folder, filesep, pathsAmp(k).name); % Use filesep instead of just '/'
+%     data = load(filename);
+%     Gobal =['data.sepratedSpindles',num2str(sessionNumber(k)),'.globalPeaks'];
+%     GlobalData = eval(Gobal);
+%     GlobAmpcat = [GlobAmpcat , GlobalData(1,:)];
+    load (['PAC_features_spindles_SPWR' num2str(k) '.mat'])
+%     ref = getRefSpindleChannel(sepratedSpindles.sepratedSpindles.referencChannel(1,1) );
+%      GlobalDatazscored= sepratedSpindles.sepratedSpindles.globalSPindles (2,ref);
+%      LocalDataZscored = sepratedSpindles.sepratedSpindles.localSPindles (2,ref);
+      GlobStrPAC = PAC_features.strengthglob  ;
+    LocStrPAC = PAC_features.strengthLoc;
+%     GlobStrPACcat = [GlobStrPACcat , GlobStrPAC(1,:)];
+
+    meanAmpGlobindi(k) = mean(GlobStrPAC(1,:));
+%     Local =['data.sepratedSpindles',num2str(sessionNumber(k)),'.LocalPeaks'];
+%     LocalData = eval(Local);
+    meanAmpLocindi(k) = mean(LocStrPAC(1,:));
+%     LocStrPACcat = [LocStrPACcat , LocStrPAC(1,:)];
+    meanModuIndexGlob = mean(GlobStrPAC);
+    meanModuIndexLoc = mean(LocStrPAC);
+    [h, p] = ttest2(GlobStrPAC , LocStrPAC);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean strength of PAC for big is ' num2str(meanModuIndexGlob)]);
+    disp(['mean strength of PAC for short is ' num2str(meanModuIndexLoc)]);
+    fprintf('There is a significant difference between the means.\n');
+        count = count+1;
+    ch_mag(k) = k;
+
+else
+    disp(['mean strength of PAC for big is ' num2str(meanModuIndexGlob)]);
+    disp(['mean strength of PAC rate for short is ' num2str(meanModuIndexLoc)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+%plot
+
+
+figure
+nbin=50;
+histogram(GlobStrPAC,nbin,'FaceColor','r','Normalization','probability')
+[Nglob, globEdge] = histcounts(GlobStrPAC);
+
+xline (meanModuIndexGlob,'Color','b','LineWidth',2,'LineStyle','--')
+hold on
+histogram (LocStrPAC,nbin,'FaceColor','b','Normalization','probability')
+[Nloc, LocEdge] = histcounts(LocStrPAC);
+
+xline(meanModuIndexLoc,'color','r','LineWidth',2,'LineStyle','--')
+
+title(['histogram strength of PAC between spindles and SPWR' num2str(k)],'Color','k')
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('PAC','Color','k')
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Big',['Mean Global = ' num2str(meanModuIndexGlob)],'Short',['Mean Local = ' num2str(meanModuIndexLoc)]); 
+
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+histdim = [max(LocEdge)/1.05 0.05];
+
+text('FontSize', 12, 'Color', 'k', 'Position', histdim,'String',['p-value = ' num2str(p)]);
+hold off
+axis square
+end
+mag_per = (count/nRaws)*100;
+temp =[];
+temp = find(ch_mag==0);
+ch_mag(temp)=[];
+magnificent.histogram_strength_of_PAC_between_spindles_and_SPWR = mag_per;
+magnificent.histogram_strength_of_PAC_between_spindles_and_SPWR_se = ch_mag;
+
+%% plot campares for all session in a linear axes 
+globMax = max(meanAmpGlobindi);
+ShortMax = max(meanAmpLocindi);
+if globMax > ShortMax
+    limitationBand = globMax;
+else 
+    limitationBand = ShortMax;
+end
+% limitationBand = max(round(meanAmpGlobindi) || round(meanAmpLocindi));
+
+x = 0.00001:0.001:limitationBand;
+y = x;
+figure
+plot ( x,y,'Color','k','LineWidth',2)
+hold on 
+plot (meanAmpGlobindi,meanAmpLocindi,'Ok','MarkerSize',5)
+title ('Phase of PAC for spindle-SPWR')
+xlabel('Global')
+ylabel('Local ')
+axis square
+%% amplitude compare SO
+
+% Define paths
+pathsAmp = dir('*/sepratedSpindles*');
+[nRaws, ~] = size(pathsAmp);
+
+meanAmpBigindi = zeros(1,nRaws);
+
+meanAmpShortindi = zeros(1,nRaws);
+% BigAmpcat = [];
+% ShortAmpcat = [];
+count = 0;
+ch_mag =zeros(1,nRaws);
+for k = 1:nRaws
+%     filename = strcat(pathsAmp(k).folder, filesep, pathsAmp(k).name); % Use filesep instead of just '/'
+%     data = load(filename);
+%     Gobal =['data.sepratedSpindles',num2str(sessionNumber(k)),'.globalPeaks'];
+%     GlobalData = eval(Gobal);
+%     GlobAmpcat = [GlobAmpcat , GlobalData(1,:)];
+    load (['SOdetected' num2str(k) '.mat'])
+    load (['SOreferenceChannelDelayAndRatioFrom0.5to4Hz' num2str(k) '.mat'])
+    load (['thal_ch_norm_filtered_so' num2str(k) '.mat'])
+    refsamp= find(SOdetected.ISBLIPE(SOreferenceChannelDelayAndRatio.RefCh,:)==1);
+
+%     ref = getRefSpindleChannel(sepratedSpindles.sepratedSpindles.referencChannel(1,1) );
+     BigData= refsamp(SOreferenceChannelDelayAndRatio.ratio> 0.5);
+     ShortData = refsamp(SOreferenceChannelDelayAndRatio.ratio <= 0.5);
+     BIgAmp = thal_ch_norm_filtered_so(SOreferenceChannelDelayAndRatio.RefCh,BigData) ;
+    ShortAmp = thal_ch_norm_filtered_so(SOreferenceChannelDelayAndRatio.RefCh,ShortData);
+%     BigAmpcat = [BigAmpcat , BIgAmp(1,:)];
+
+    meanAmpBigindi(k) = mean(BIgAmp(1,:));
+%     Local =['data.sepratedSpindles',num2str(sessionNumber(k)),'.LocalPeaks'];
+%     LocalData = eval(Local);
+    meanAmpShortindi(k) = mean(ShortAmp(1,:));
+%     ShortAmpcat = [ShortAmpcat , ShortAmp(1,:)];
+
+
+% t-test
+meanAmpBig = mean(BIgAmp);
+meanAmpShort = mean(ShortAmp);
+
+
+% Perform t-test
+[h, p] = ttest2(BIgAmp , ShortAmp);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean amplitude for Global is ' num2str(meanAmpBig)]);
+    disp(['mean amplitude for Local is ' num2str(meanAmpShort)]);
+    fprintf('There is a significant difference between the means.\n');
+        count = count+1;
+    ch_mag(k) = k;
+
+else
+    disp(['mean amplitude for Gloal is ' num2str(meanAmpBig)]);
+    disp(['mean amplitude for Local is ' num2str(meanAmpShort)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+
+%plot
+
+
+figure
+nbin=50;
+histogram(BIgAmp,nbin,'FaceColor','b','Normalization','probability')
+[NBig, BigEdge] = histcounts(BIgAmp);
+
+xline (meanAmpBig,'Color','b','LineWidth',2,'LineStyle','--')
+
+hold on
+histogram (ShortAmp,nbin,'FaceColor','r','Normalization','probability')
+[NShort, ShortEdge] = histcounts(ShortAmp);
+
+xline(meanAmpShort,'color','r','LineWidth',2,'LineStyle','--')
+ylabel('P')
+title(['histogram of amplitude for single and double tops in session' num2str(k)],'Color','k')
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('Amplitude','Color','k')
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('single',['Mean single = ' num2str(meanAmpBig)],...
+    'Double',['Mean double = ' num2str(meanAmpShort)],['P-value =' num2str(p)]); 
+
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+histdim = [max(ShortEdge)/1.25 0.05];
+
+text('FontSize', 12, 'Color', 'k', 'Position', histdim,'String',['p-value = ' num2str(p)]);
+hold off
+axis square
+end
+mag_per = (count/nRaws)*100;
+temp =[];
+temp = find(ch_mag==0);
+ch_mag(temp)=[];
+magnificent.amplitude_compare_So = mag_per;
+magnificent.amplitude_compare_So_se = ch_mag;
+
+%% plot campares for all session in a linear axes 
+meanAmpShortindi(13) = [];
+meanAmpBigindi(13) = [];
+BigMax = max(meanAmpBigindi);
+Big_min = min(meanAmpBigindi);
+ShortMax = max(meanAmpShortindi);
+short_min = min(meanAmpShortindi);
+% meanAmpBigindi(meanAmpBigindi>2.5)=[];
+% meanAmpShortindi(meanAmpShortindi>2.5)=[];
+
+if BigMax > ShortMax
+    limitationBand = BigMax;
+else 
+    limitationBand = ShortMax;
+end
+
+if Big_min < short_min
+    downBand = Big_min;
+else 
+    downBand = short_min;
+end
+
+% limitationBand = max(round(meanAmpGlobindi) || round(meanAmpLocindi));
+
+x = downBand:0.001:limitationBand;
+y = x;
+figure
+plot ( x,y,'Color','k','LineWidth',2)
+hold on 
+plot (meanAmpBigindi,meanAmpShortindi,'Ok','MarkerSize',5)
+title ('amplitude for single and double tops ','FontSize',20)
+xlabel('Double tops ','FontSize',20)
+ylabel('Single top','FontSize',20)
+axis square
+%% duration compare SO
+fs=1250;
+nRaws=18;
+meanDurationShortindi=zeros(1,nRaws);
+meanDurationBigindi = zeros(1,nRaws);
+count = 0;
+ch_mag =zeros(1,nRaws);
+for k = 1:nRaws
+    durationShort =[];
+    durationBig =[];
+%     filename = strcat(pathsAmp(k).folder, filesep, pathsAmp(k).name); % Use filesep instead of just '/'
+%     data = load(filename);
+%     Gobal =['data.sepratedSpindles',num2str(sessionNumber(k)),'.globalPeaks'];
+%     GlobalData = eval(Gobal);
+%     GlobAmpcat = [GlobAmpcat , GlobalData(1,:)];
+    load (['SOdetected' num2str(k) '.mat'])
+    load (['SOreferenceChannelDelayAndRatioFrom0.5to4Hz' num2str(k) '.mat'])
+    load (['thal_ch_norm_filtered_so' num2str(k) '.mat'])
+    refsamp= find(SOdetected.ISBLIPE(SOreferenceChannelDelayAndRatio.RefCh,:)==1);
+    ref = SOreferenceChannelDelayAndRatio.RefCh;
+    ratio = SOreferenceChannelDelayAndRatio.ratio;
+%     ref = getRefSpindleChannel(sepratedSpindles.sepratedSpindles.referencChannel(1,1) );
+%      BigData= refsamp(SOreferenceChannelDelayAndRatio.ratio> 0.5);
+%      ShortData = refsamp(SOreferenceChannelDelayAndRatio.ratio <= 0.5);
+%      BIgAmp = thal_ch_norm_filtered_so(SOreferenceChannelDelayAndRatio.RefCh,BigData) ;
+%     ShortAmp = thal_ch_norm_filtered_so(SOreferenceChannelDelayAndRatio.RefCh,ShortData);
+[durationBig, durationShort] = ShortAndBIgDurationComputation(refsamp,fs,ratio,ref,thal_ch_norm_filtered_so);
+%     BigDurationcat = [BigDurationcat , durationBig];
+
+    meanDurationBigindi(k) = mean(durationBig(1,:));
+%     Local =['data.sepratedSpindles',num2str(sessionNumber(k)),'.LocalPeaks'];
+%     LocalData = eval(Local);
+    meanDurationShortindi(k) = mean(durationShort(1,:));
+%     ShortDurationtcat = [ShortDurationtcat , durationShort];
+
+% compute means
+
+meanDurationbig = mean(durationBig);
+meanDurationshort = mean(durationShort);
+
+
+% Perform t-test
+[h, p] = ttest2(durationBig, durationShort);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean duration for Big ratio is ' num2str(meanDurationbig)]);
+    disp(['mean duration for short ratio is ' num2str(meanDurationshort)]);
+    fprintf('There is a significant difference between the means.\n');
+        count = count+1;
+    ch_mag(k) = k;
+
+else
+    disp(['mean duration for Big ratio is ' num2str(meanDurationbig)]);
+    disp(['mean duration for short ratio is ' num2str(meanDurationshort)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+%plot 
+nbin = 20;
+figure
+histogram(durationBig,nbin,'FaceColor','r','Normalization','probability')
+[NBig, BigEdge] = histcounts(durationBig);
+title(['Duration of SOs for session' num2str(k)])
+xline (meanDurationbig,'Color','r','LineWidth',2,'LineStyle','--')
+xlabel('duration(s)')
+ylabel('P')
+% set(gca,'fontsize',16,'color',[0 0 0])
+% set(groot, 'defaultFigureColor', [0 0 0]);
+% set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+hold on
+histogram (durationShort,nbin,'FaceColor','b','Normalization','probability')
+[NShort, ShortEdge] = histcounts(durationShort);
+
+xline(meanDurationshort,'color','b','LineWidth',2,'LineStyle','--')
+% if p < 0.05
+%     if meandelaybig > meandelayshort
+%         plot (meandelayshort:meandelaybig,9*ones(meandelayshort:meandelaybig))
+%         hold on 
+%         plot ((meandelaybig-meandelayshort)/2,9,'MarkerIndices','*')
+%         hold off
+%     end
+% else 
+%     plot (meandelaybig:meandelayshort,9*ones(meandelaybig:meandelayshort))
+%         hold on 
+%         plot ((abs(meandelaybig-meandelayshort))/2,9,'MarkerIndices','*')
+%         hold off
+% end
+legend_handle = legend('Double tops',['Mean Double tops = ' num2str(meanDurationbig)],...
+    'Single top',['Mean Single top = ' num2str(meanDurationshort)],['P-value =' num2str(p)]); 
+
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+histdim = [max(ShortEdge)/1.25 0.05];
+
+text('FontSize', 12, 'Color', 'k', 'Position', histdim,'String',['p-value = ' num2str(p)]);
+hold off
+axis square
+end
+mag_per = (count/nRaws)*100;
+temp =[];
+temp = find(ch_mag==0);
+ch_mag(temp)=[];
+magnificent.duration_compare_So = mag_per;
+magnificent.duration_compare_So_se = ch_mag;
+
+%% plot campares for all session in a linear axes 
+BigMax = max(meanDurationBigindi);
+Big_min = min (meanDurationBigindi);
+ShortMax = max(meanDurationShortindi);
+short_min = min(meanDurationShortindi);
+if BigMax > ShortMax
+    limitationBand = BigMax;
+else 
+    limitationBand = ShortMax;
+end
+
+if Big_min < short_min
+    downBand = Big_min;
+else 
+    downBand = short_min;
+end
+
+% limitationBand = max(round(meanAmpGlobindi) || round(meanAmpLocindi));
+
+x = downBand:0.001:limitationBand;
+y = x;
+figure
+plot ( x,y,'Color','k','LineWidth',2)
+hold on 
+plot (meanDurationBigindi,meanDurationShortindi,'Ok','MarkerSize',5)
+title ('Duration for single and double tops ')
+xlabel('Double tops ')
+ylabel('Single top')
+axis square
+%% firing rate SO
+
+
+% Define paths
+% pathsFR = dir('*/FRspindles*');
+% [nRaws, nColumns] = size(pathsFR);
+% 
+meanFRBigindi = zeros(1,nRaws);
+% 
+meanFRShortindi = zeros(1,nRaws);
+BigRcatzscored = [];
+BigFRcat =[];
+ShortFRcatzscored = [];
+ShortFRcat =[];
+count = 0;
+ch_mag =zeros(1,nRaws);
+% fs=1250;
+for k = 1:nRaws
+%     filename = strcat(pathsFR(k).folder, filesep, pathsFR(k).name); % Use filesep instead of just '/'
+BiglData =[];
+ShortData =[];
+
+    load (['SpikesBaseOnLocation' num2str(k) '.mat']);
+     temp = [];
+    spikes_sws= SpikesBaseOnLocation.SpikesBaseOnLocation.Thalamus;
+    for j=1:size(spikes_sws,1)
+        sp = find(spikes_sws(j,:)==1);
+        FR = length(sp)/(length(spikes_sws(j,:))/fs);
+        if FR<0.5
+            temp = [temp j];
+        end
+    end
+    spikes_sws(temp,:)=[];
+    SpikesBaseOnLocation.SpikesBaseOnLocation.ThalamousshankIDs(temp) = [];
+        load (['BigCellsInformation' num2str(k)  '.mat'])
+        load (['ShortCellsInformation' num2str(k)  '.mat'])
+        BiglData = BigCellsInformation.meanfiringRateBigInd(1,:);
+        ShortData = ShortCellsInformation.meanfiringRateShortInd(1,:);
+    meanFRBigindi(k) = mean( BiglData);
+    meanFRShortindi(k) = mean( ShortData);
+
+meanfiringRateBig = mean (BiglData);
+meanfiringRateShort = mean(ShortData);
+
+
+% Perform t-test
+[h, p] = ttest(BiglData, ShortData);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean firing rate for Big is ' num2str(meanfiringRateBig)]);
+    disp(['mean firing rate for Short is ' num2str(meanfiringRateShort)]);
+    fprintf('There is a significant difference between the means.\n');
+        count = count+1;
+    ch_mag(k) = k;
+
+else
+    disp(['mean firing rate for Big is ' num2str(meanfiringRateBig)]);
+    disp(['mean firing rate for Short is ' num2str(meanfiringRateShort)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+%
+figure
+nbin=15;
+histogram(BiglData,nbin,'FaceColor','r','Normalization','probability')
+[NBig, BigEdge] = histcounts(BiglData);
+
+xline (meanfiringRateBig,'Color','r','LineWidth',2,'LineStyle','--')
+hold on
+histogram (ShortData,nbin,'FaceColor','b','Normalization','probability')
+[NShort, ShortEdge] = histcounts(ShortData);
+
+xline(meanfiringRateShort,'color','b','LineWidth',2,'LineStyle','--')
+% if p < 0.05
+%     if meandelaybig > meandelayshort
+%         plot (meandelayshort:meandelaybig,9*ones(meandelayshort:meandelaybig))
+%         hold on 
+%         plot ((meandelaybig-meandelayshort)/2,9,'MarkerIndices','*')
+%         hold off
+%     end
+% else 
+%     plot (meandelaybig:meandelayshort,9*ones(meandelaybig:meandelayshort))
+%         hold on 
+%         plot ((abs(meandelaybig-meandelayshort))/2,9,'MarkerIndices','*')
+%         hold off
+% end
+title(['histogram of Firingrate for single and double tops in session' num2str(k)],'Color','k')
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('Firing rate','Color','k')
+ylabel('P')
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Big',['Mean Short = ' num2str(meanfiringRateBig)],'Short',['Mean Short = ' num2str(meanfiringRateShort)]); 
+
+% Set the text color to white
+% set(legend_handle, 'TextColor', 'k')
+histdim = [max(ShortEdge)/1.25 0.05];
+
+text('FontSize', 12, 'Color', 'k', 'Position', histdim,'String',['p-value = ' num2str(p)]);
+hold off
+axis square
+end
+mag_per = (count/nRaws)*100;
+temp =[];
+temp = find(ch_mag==0);
+ch_mag(temp)=[];
+magnificent.firingrate_compare_So = mag_per;
+magnificent.firingrate_compare_So_se = ch_mag;
+
+%% plot campares for all session in a linear axes 
+BigMax = max(meanFRBigindi);
+ShortMax = max(meanFRShortindi);
+if BigMax > ShortMax
+    limitationBand = BigMax;
+else 
+    limitationBand = ShortMax;
+end
+% limitationBand = max(round(meanAmpGlobindi) || round(meanAmpLocindi));
+
+x = 0.00001:0.001:limitationBand;
+y = x;
+figure
+plot ( x,y,'Color','k','LineWidth',2)
+hold on 
+plot (meanFRBigindi,meanFRShortindi,'Ok','MarkerSize',5)
+title ('Firing rate for single and double tops ')
+xlabel('Double tops ')
+ylabel('Single top')
+axis square
+%%  MI 
+% Define paths
+% pathsFR = dir('*/FRspindles*');
+% [nRaws, ~] = size(pathsFR);
+% 
+meanMIBigindi = zeros(1,nRaws);
+% 
+meanMIShortindi = zeros(1,nRaws);
+BigMIcatzscored = [];
+BigMIcat =[];
+ShortMIcatzscored = [];
+ShortMIcat =[];
+count = 0;
+ch_mag =zeros(1,nRaws);
+% fs=1250;
+for k = 5:5%nRaws
+%     filename = strcat(pathsFR(k).folder, filesep, pathsFR(k).name); % Use filesep instead of just '/'
+meanMIShortindicell =[];
+meanMIBigindicell =[];
+    load (['SpikesBaseOnLocation' num2str(k) '.mat']);
+     load (['BigCellsInformation' num2str(k)  '.mat'])
+        load (['ShortCellsInformation' num2str(k)  '.mat'])
+     temp = [];
+    spikes_sws= SpikesBaseOnLocation.SpikesBaseOnLocation.Thalamus;
+    for j=1:size(spikes_sws,1)
+        sp = find(spikes_sws(j,:)==1);
+        FR = length(sp)/(length(spikes_sws(j,:))/fs);
+        if FR<0.5
+            temp = [temp j];
+        end
+    end
+    spikes_sws(temp,:)=[];
+    SpikesBaseOnLocation.SpikesBaseOnLocation.ThalamousshankIDs(temp) = [];
+        BigData = BigCellsInformation.MIBigIndivisually(1,:);
+        ShortData = ShortCellsInformation.MIShortIndivisually(1,:);
+    meanMIBigindi(k) = mean( BigData);
+    meanMIShortindi(k) = mean( ShortData);
+meanMIBig = mean (BigData);
+meanMIShort = mean(ShortData);
+
+% Perform t-test
+[h, p] = ttest(BigData, ShortData);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean MI for Global is ' num2str(meanMIBig)]);
+    disp(['mean MI for Local is ' num2str(meanMIShort)]);
+    fprintf('There is a significant difference between the means.\n');
+        count = count+1;
+    ch_mag(k) = k;
+
+else
+    disp(['mean MI for Global is ' num2str(meanMIBig)]);
+    disp(['mean MI for Local is ' num2str(meanMIShort)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+%
+figure
+nbin=8;
+histogram(BigData,nbin,'FaceColor','b','Normalization','probability')
+[NBig, BigEdge] = histcounts(BigData);
+
+xline (meanMIBig,'Color','b','LineWidth',2,'LineStyle','--')
+hold on
+histogram (ShortData,nbin,'FaceColor','r','Normalization','probability')
+xline(meanMIShort,'color','r','LineWidth',2,'LineStyle','--')
+[NShort, ShortEdge] = histcounts(ShortData);
+
+% if p < 0.05
+%     if meandelaybig > meandelayshort
+%         plot (meandelayshort:meandelaybig,9*ones(meandelayshort:meandelaybig))
+%         hold on 
+%         plot ((meandelaybig-meandelayshort)/2,9,'MarkerIndices','*')
+%         hold off
+%     end
+% else 
+%     plot (meandelaybig:meandelayshort,9*ones(meandelaybig:meandelayshort))
+%         hold on 
+%         plot ((abs(meandelaybig-meandelayshort))/2,9,'MarkerIndices','*')
+%         hold off
+% end
+title(['histogram of MI for single and double tops in session' num2str(k)],'Color','k')
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('MI','Color','k')
+ylabel('P')
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Double',['Mean double = ' num2str(meanMIBig)],'Single',['Mean Single = ' num2str(meanMIShort)]); 
+
+% Set the text color to white
+% set(legend_handle, 'TextColor', 'k')
+% histdim = [max(ShortEdge)/1.25 0.05];
+histdim = [80 0.25]
+text('FontSize', 12, 'Color', 'k', 'Position',histdim,'String',['p-value = ' num2str(p)]);
+hold off
+
+axis square
+end
+mag_per = (count/nRaws)*100;
+temp =[];
+temp = find(ch_mag==0);
+ch_mag(temp)=[];
+magnificent.MI_compare_So = mag_per;
+magnificent.MI_compare_So_se = ch_mag;
+
+%% plot campares for all session in a linear axes 
+BigMax = max(meanMIBigindi);
+ShortMax = max(meanMIShortindi);
+if BigMax > ShortMax
+    limitationBand = BigMax;
+else 
+    limitationBand = ShortMax;
+end
+% limitationBand = max(round(meanAmpGlobindi) || round(meanAmpLocindi));
+
+x = 0.00001:0.001:limitationBand;
+y = x;
+figure
+plot ( x,y,'Color','k','LineWidth',2)
+hold on 
+plot (meanMIBigindi,meanMIShortindi,'Ok','MarkerSize',5)
+title ('MI for single and double tops ')
+xlabel('Double tops ')
+ylabel('Single top')
+axis square
+%% Phase 
+mean_Loc_phase = zeros(1,nRaws-1);
+mean_glob_phase = zeros(1,nRaws-1);
+
+
+for i =2:nRaws
+    load (['So_Hilbert_phase' num2str(i) '.mat'])
+    Loc_phase = So_Hilbert_phase.Local;
+    glob_phase = So_Hilbert_phase.Global;
+    mean_Loc_phase(i) = circ_mean(Loc_phase);
+    mean_glob_phase(i) = circ_mean(glob_phase);
+
+end
+BigMax = max(mean_Loc_phase);
+ShortMax = max(mean_glob_phase);
+if BigMax > ShortMax
+    limitationBand = BigMax;
+else 
+    limitationBand = ShortMax;
+end
+% limitationBand = max(round(meanAmpGlobindi) || round(meanAmpLocindi));
+
+x = -limitationBand:0.001:limitationBand;
+y = x;
+figure
+plot ( x,y,'Color','k','LineWidth',2)
+hold on 
+plot (mean_glob_phase,mean_Loc_phase,'Ok','MarkerSize',5)
+title ('MI for single and double tops ')
+xlabel('SO-Global spindles coupling phase ')
+ylabel('SO-Local spindles coupling phase ')
+axis square
+%% save figures
+
+% Get the path to the directory where you want to save the figures
+save_path = 'D:\daniel\session by sesson';
+% Get handles of all open figures
+        fig_list = findobj('Type','figure');
+                        
+% %         Maximize each figure
+%         for n = 1:length(fig_list)
+%             set(fig_list(n),'WindowState','maximized');
+%         end
+% %         
+% Save each figure to the specified path
+for i = 1:length(fig_list)
+    fig = fig_list(i);
+    saveas(fig, fullfile(save_path, sprintf('figure_%d.png', i)));
+    saveas(fig, fullfile(save_path, sprintf('figure_%d.fig', i)));
+
+end
+
+save magnificent    magnificent
