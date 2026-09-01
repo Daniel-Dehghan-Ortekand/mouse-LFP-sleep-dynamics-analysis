@@ -1,0 +1,236 @@
+
+%% Data organization and preprocessing
+% This script loads and reorganizes sleep-related neural data from multiple
+% recording sessions, including slow oscillation (SO) detection, spindle
+% detection, filtered thalamic signals, spike data, and SO delay/ratio
+% information. The data are renamed and saved in a session-wise format for
+% subsequent analysis. It also stores the channels excluded from analysis
+% for each recording session.
+
+clc 
+close all 
+clear 
+%% find data 
+SOdata = cell(1,18);
+pathsSoDetected = dir('*/SOdetected*');
+SOdetected = cell(1,18);
+pathsDelayAndRatio = dir('*/SOreferenceChannelDelayAndRatioFrom0.5to4Hz*');
+SOreferenceChannelDelayAndRatioFrom5to4Hz = cell(1,18);
+pathsDelayAndRatio = dir('*/SOreferenceChannelDelayAndRatioFrom0.5to10Hz*');
+SOreferenceChannelDelayAndRatioFrom5to10Hz = cell(1,18);
+
+
+for k=1:size(SOdata,2)
+
+    filename = strcat(pathsSoDetected(k).folder, filesep, pathsSoDetected(k).name); % Use filesep instead of just '/'
+    data = load(filename);
+    SOdetected = data;
+    save(['SOdetected' num2str(k)], 'SOdetected', '-v7.3');
+    clear SOdetected
+        clear data
+
+end
+%%
+pathssws = dir('*/SWS_episode_for*');
+
+for k=1:size(SOdata,2)
+
+    filename = strcat(pathssws(k).folder, filesep, pathssws(k).name); % Use filesep instead of just '/'
+    data = load(filename);
+    SWS_episode = data;
+    save(['SWS_episode' num2str(k)], 'SWS_episode', '-v7.3');
+    clear SWS_episode_neat
+        clear data
+
+end
+
+
+pathsfiltered = dir('*/thal_ch_norm_filtered_so*');
+
+
+for k=1:18%size(pathsfiltered,2)
+
+    filename = strcat(pathsfiltered(k).folder, filesep, pathsfiltered(k).name); % Use filesep instead of just '/'
+    data = load(filename);
+    thal_ch_norm_filtered_so = data;
+    save(['thal_ch_norm_filtered_so' num2str(k)], 'thal_ch_norm_filtered_so', '-v7.3');
+    clear thal_ch_norm_filtered_so
+        clear data
+
+end
+
+%%
+pathsspikes = dir('*/SpikesBaseOnLocation*');
+
+
+for k=1:size(pathsspikes,1)
+
+    filename = strcat(pathsspikes(k).folder, filesep, pathsspikes(k).name); % Use filesep instead of just '/'
+    data = load(filename);
+    SpikesBaseOnLocation = data;
+    save(['SpikesBaseOnLocation' num2str(k)], 'SpikesBaseOnLocation', '-v7.3');
+    clear SpikesBaseOnLocation
+        clear data
+
+end
+%%
+pathscellinfo = dir('*/SpikesCellinfo*');
+
+for k=1:size(pathscellinfo,1)
+
+    filename = strcat(pathscellinfo(k).folder, filesep, pathscellinfo(k).name); % Use filesep instead of just '/'
+    data = load(filename);
+    SpikesCellinfo = data;
+    save(['SpikesCellinfo' num2str(k)], 'SpikesCellinfo', '-v7.3');
+    clear SpikesCellinfo
+        clear data
+
+end
+
+
+%%
+
+pathsDelayAndRatio = dir('*/SOreferenceChannelDelayAndRatioFrom0.5to4Hz*');
+
+for k=1:size(pathsDelayAndRatio,1)
+
+    filename = strcat(pathsDelayAndRatio(k).folder, filesep, pathsDelayAndRatio(k).name); % Use filesep instead of just '/'
+    data = load(filename);
+    SOreferenceChannelDelayAndRatioFrom5to4Hz = data;
+    save(['SOreferenceChannelDelayAndRatioFrom0.5to4Hz' num2str(k) '.mat '],'SOreferenceChannelDelayAndRatioFrom5to4Hz');
+    clear SOreferenceChannelDelayAndRatioFrom5to4Hz
+        clear data
+
+end
+
+
+%%
+pathsDelayAndRatio = dir('*/SOreferenceChannelDelayAndRatioFrom0.5to10Hz*');
+for k=1:size(pathsDelayAndRatio,1)
+
+    filename = strcat(pathsDelayAndRatio(k).folder, filesep, pathsDelayAndRatio(k).name); % Use filesep instead of just '/'
+    data = load(filename);
+    SOreferenceChannelDelayAndRatioFrom5to10Hz = data;
+    save(['SOreferenceChannelDelayAndRatioFrom0.5to10Hz' num2str(k) '.mat'], 'SOreferenceChannelDelayAndRatioFrom5to10Hz');
+    clear SOreferenceChannelDelayAndRatioFrom5to10Hz
+        clear data
+
+end
+%%
+
+pathsfilteredspi = dir('*/thal_ch_norm_filtered_spi*');
+
+pathsSepspi = dir('*/sepratedSpindles*');
+
+
+for k=1:size(pathsfilteredspi,1)
+
+    filename = strcat(pathsfilteredspi(k).folder, filesep, pathsfilteredspi(k).name); % Use filesep instead of just '/'
+    data = load(filename);
+    thal_ch_norm_filtered = data;
+    save(['thal_ch_norm_filtered' num2str(k)], 'thal_ch_norm_filtered', '-v7.3');
+    clear thal_ch_norm_filtered
+        clear data
+
+end
+
+
+for k=1:size(pathsfilteredspi,1)
+
+    filename = strcat(pathsSepspi(k).folder, filesep, pathsSepspi(k).name); % Use filesep instead of just '/'
+    data = load(filename);
+    sepratedSpindles = data;
+    save(['sepratedSpindles' num2str(k)], 'sepratedSpindles', '-v7.3');
+    clear sepratedSpindles
+        clear data
+
+end
+
+%%
+% SOdetectedAll = cell(1,18);
+% for k=1:size(SOdetectedAll,2)
+%     load(['SOdetected' num2str(k)]);
+% Y =logical( SOdetected.SOdetected.Y);
+% ISBLIPE = int8(SOdetected.SOdetected.ISBLIPE);
+% SOdetected.Y = Y;
+% SOdetected.ISBLIPE = ISBLIPE;
+%     SOdetectedAll{1,k} = SOdetected;
+% 
+% %     clear SOdetected
+% end 
+
+% SOdata{1,1} = 'SO detected ';
+% SOdata{2,1} = SOdetected;
+
+%%
+
+for k=1:size (SOdata,2)
+     filenameDAR = strcat(pathsDelayAndRatio(k).folder, filesep, pathsDelayAndRatio(k).name); % Use filesep instead of just '/'
+    dataDAR = load(filenameDAR);
+    SOreferenceChannelDelayAndRatioFrom5to4Hz{1,k} = dataDAR;
+    
+    filenameDAR = strcat(pathsDelayAndRatio(k).folder, filesep, pathsDelayAndRatio(k).name); % Use filesep instead of just '/'
+    dataDAR = load(filenameDAR);
+    SOreferenceChannelDelayAndRatioFrom5to10Hz{1,k} = dataDAR;
+    
+end 
+
+% for k=1:size(SOdata,2)
+%     filename = strcat(pathsSoDetected(k).folder, filesep, pathsSoDetected(k).name);
+%     data = memmap(filename);
+%     SOdetected{1,k} = data;
+%     dataDAR = memmap(filenameDAR);
+%     SOreferenceChannelDelayAndRatioFrom5to4Hz{1,k} = dataDAR;
+%     filenameDAR = strcat(pathsDelayAndRatio(k).folder, filesep, pathsDelayAndRatio(k).name);
+%     dataDAR = memmap(filenameDAR);
+%     SOreferenceChannelDelayAndRatioFrom5to10Hz{1,k} = dataDAR;
+% end
+
+
+SOdata{1,1} = 'SOreferenceChannelDelayAndRatioFrom 0.5 to 4 Hz';
+SOdata{2,1} = SOreferenceChannelDelayAndRatioFrom5to4Hz;
+
+SOdata{1,2} = 'SOreferenceChannelDelayAndRatioFrom 0.5 to 10 Hz';
+SOdata{2,2} = SOreferenceChannelDelayAndRatioFrom5to10Hz;
+save SOdata.mat SOdata
+%%
+deletedChannels {1} = [19 20 21];
+ deletedChannels {2}=[24];
+deletedChannels{3}=[];
+deletedChannels{4}=[];
+deletedChannels{5} = [36];
+deletedChannels{6} = [50];
+deletedChannels{7} = [50];
+deletedChannels{8} = [46 47 59];
+deletedChannels{9} = [1 48];
+deletedChannels{10} =  [59];
+deletedChannels{11} =  [59];
+deletedChannels{12} =  [59];
+deletedChannels{13} =  [];
+deletedChannels{14} = [64];
+deletedChannels{15} = [42:48];
+deletedChannels{16} = [42:48 64];
+deletedChannels{17} = [42:48 64];
+deletedChannels{18} = [63 64];
+save deletedChannels    deletedChannels
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
