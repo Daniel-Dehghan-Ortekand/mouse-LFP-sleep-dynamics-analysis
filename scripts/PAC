@@ -1,0 +1,208 @@
+%% Phase-amplitude coupling analysis
+% This class implements phase-amplitude coupling (PAC) analysis by
+% extracting event-centered segments from neural signals, computing
+% time-frequency representations (TFRs), optionally applying baseline
+% normalization, and estimating phase synchronization between the
+% event-related filtered signal and the time-varying spectral power.
+% The class also calculates the synchronization index (SI) for each event
+% and stores the mean raw signal, filtered signal, and TFR across events.
+% Optional debugging outputs and visualization methods are provided for
+% inspecting the resulting PAC analysis.
+
+classdef PAC < handle
+    %PAC Summary of this class goes here
+    %   Detailed explanation goes here
+    
+    properties
+        SI (1,:) single
+        MeanData (1,:) single
+        MeanRawData (1,:) single
+
+        MeanTFR (:,:) single
+        Freq (1,:) single
+        Time (1,:) single
+
+        Debug = false
+        DebugTFR (1,:) TFR
+        DebugTFRBase (1,:) TFR
+        DebugData (:,:) single
+        DebugFilterData (:,:) single
+    end
+
+    properties(Access = private)
+        win = 0.25
+        win_total = 4
+
+        pre_event_start = -2.5
+        pre_event_stop = -1.5
+
+        baseline = true
+    end
+
+    properties(Dependent, Access = private)
+        padwin
+        SIIndex
+    end
+    
+    methods
+        function obj = PAC(window, pre_event, debug, baseline)
+            %PAC Construct an instance of this class
+            %   Detailed explanation goes here
+            obj.win = window;
+%             obj.win_total = window * 16;
+            obj.pre_event_start = pre_event(1);
+            obj.pre_event_stop = pre_event(2);
+
+            obj.Debug = debug;
+
+            if nargin > 3
+                obj.baseline = baseline;
+            end
+        end
+        
+        function pw = get.padwin(obj)
+            pw = 9;
+        end
+
+        function siindex = get.SIIndex(obj)
+            siindex = mean(obj.SI);
+        end
+
+        function Run(obj, raw_data, raw_freq, event_data, event_freq, event, fs)
+            arguments
+                obj PAC
+                raw_data (1,:) double {mustBeVector}
+                raw_freq (1,2) double {mustBeVector, mustBeNonnegative}
+                event_data (1,:) double {mustBeVector}
+                event_freq (1,2) double {mustBeVector, mustBeNonnegative}
+                event (1,:) uint32
+                fs double
+            end
+
+            % define fir filter
+            fir = Filter.FIR(fs, event_freq(1), event_freq(2), 0);
+            runfir = @fir.Run;
+            
+            % remove events
+            wt = floor(obj.win_total*fs);
+            event(event <= wt | event >= length(raw_data)-wt) = [];
+            event_len = length(event);
+            
+            % zero padding len
+            p = round(obj.padwin*fs);
+
+            % get all data
+            events_data = zeros(event_len, 2*wt+1);
+            raws_data = zeros(event_len, 2*wt+1);
+            for i = 1:event_len
+                events_data(i,:) = event_data(event(i)-wt : event(i)+wt);
+                raws_data(i,:) = raw_data(event(i)-wt : event(i)+wt);
+            end
+
+            % dummy run
+            tfr = TFR.Run(raws_data(1,:), raw_freq, fs);
+            tfr.Time = tfr.Time - wt/fs;
+
+            % find times
+            t1 = find(tfr.Time<=-obj.win, 1, 'last');
+            t2 = find(tfr.Time>=obj.win, 1, 'first');
+            t3 = find(tfr.Time<=obj.pre_event_start, 1, 'last');
+            t4 = find(tfr.Time>=obj.pre_event_stop, 1, 'first');
+
+            % save time and freq
+            obj.Time = tfr.Time(t1:t2);
+            obj.Freq = tfr.Freq;
+
+            % define vars for parfor
+            si = zeros(size(event));
+            meanRawData = zeros(1, t2-t1+1);
+            meanData = zeros(1, t2-t1+1);
+            meanTFR = zeros(length(obj.Freq), t2-t1+1);
+
+            parfor i = 1:event_len
+                ed = events_data(i,:);
+                rd = raws_data(i,:);
+
+                tfr = TFR.Run(rd, raw_freq, fs);
+
+%                 if(obj.Debug)
+%                     obj.DebugTFR(i) = tfr;
+%                     
+%                     obj.DebugTFRBase(i) = tfr;
+%                     obj.DebugTFRBase(i).Power = obj.DebugTFR(i).DebugBaselineIncrease(t3:t4)*100;
+% 
+%                     obj.DebugData(i,:) = ed;
+%                     obj.DebugFilterData(i,:) = fir.Run(ed);
+%                 end
+
+%                 fig = figure("Units","centimeters","Position",[1.5 1.5 27 10]);
+%                 tiledlayout("flow", "Padding", "compact");
+%                 nexttile;
+%                 imagesc(tfr.Time-mean(tfr.Time), tfr.Freq, tfr.Power);
+%                 set(gca,'YDir', 'normal');
+%                 hold on;
+%                 plot(tfr.Time-mean(tfr.Time), ed/max(abs(ed))*4+11, 'k', 'LineWidth', 1);
+%                 ff = fir.Run(ed);
+%                 plot(tfr.Time-mean(tfr.Time), ff/max(abs(ff))*4+11, 'w', 'LineWidth', 1);
+%                 text(obj.pre_event_start, raw_freq(2), string(mean(tfr.Power(:,t3:t4),"all")), "Color", "w", "FontSize", 14, "HorizontalAlignment","center","VerticalAlignment","top")
+%                 text(-obj.win, raw_freq(2), string(mean(tfr.Power(:,t1:t2),"all")), "Color", "w", "FontSize", 14, "HorizontalAlignment","center","VerticalAlignment","top")
+%                 
+%                 xlabel('Time (s)');
+%                 ylabel('Freq');
+%                 set(gca,'FontSize', 14);
+%                 exportgraphics(fig, sprintf('Report/pac/%d.png', i));
+%                 close(fig);
+
+                if obj.baseline
+                    bi = tfr.BaselineIncrease(t3:t4);
+                else
+                    bi = tfr.Power;
+                end
+                
+                rp = mean(bi, 1);
+                rp(isnan(rp)) = 0;
+
+                rf = runfir(padarray(rp, [0 p], 0));
+                ef = runfir(padarray(ed, [0 p], 0));
+
+                rf = rf(p+t1 : p+t2);
+                ef = ef(p+t1 : p+t2);
+    
+                ph = angle(hilbert(ef)) - angle(hilbert(rf));
+
+                si(i) = mean(exp(1i * ph));
+                meanTFR = meanTFR + bi(:, t1:t2) / event_len;
+                meanRawData = meanRawData + ed(t1:t2) / event_len;
+                meanData = meanData + ef / event_len;
+            end
+
+            obj.SI = si;
+            obj.MeanRawData = meanRawData;
+            obj.MeanData = meanData;
+            obj.MeanTFR = meanTFR;
+        end
+
+        function plot(obj)
+            figure
+            imagesc(obj.Time, obj.Freq, obj.MeanTFR);
+            set(gca,'YDir', 'normal');
+            colormap('jet');
+            hold on;
+            plot(obj.Time, obj.MeanData/max(obj.MeanData)*2+mean([obj.Freq(1) obj.Freq(end)]) , 'k', 'LineWidth', 2);
+            title('PAC for all events')
+
+            xlabel('Time (s)');
+            ylabel('Freq');
+            set(gca,'fontsize',16,'color',[0 0 0])
+            set(groot, 'defaultFigureColor', [1 1 1]);
+            set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+
+            figure
+            circ_plot(phase(obj.SI), 'hist', [], 20,true,true,'linewidth',2,'color','r');
+            
+            figure
+            histogram(abs(obj.SI));
+        end
+    end
+end
+
