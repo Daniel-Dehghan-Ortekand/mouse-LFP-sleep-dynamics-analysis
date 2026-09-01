@@ -1,0 +1,35 @@
+%% Extract Hilbert phase at local and global spindle events
+% This script calculates the Hilbert-transform phase of the reference
+% channel and extracts phase values at the detected local and global
+% spindle events for each recording session.
+
+
+clc 
+clear 
+close all
+%% load data 
+paths = dir('*/sepratedSpindles*');
+[nRaws , ~] = size(paths);
+fs=1250;
+for i=2:nRaws
+    load (['thal_ch_norm_filtered_so' num2str(i) '.mat'])
+    load (['sepratedSpindles' num2str(i) '.mat'])
+    load (['refSochannels' num2str(i) '.mat'])
+    load(['thal_spindles' num2str(i) '.mat'])
+    ref = refSochannels.refCh;
+%     thal_ch_norm_filtered = thal_ch_norm_filtered_so;   
+    shank = getShankID(ref,thal_ch_norm_filtered_so);
+%    refSpi = getRefChannel(shank,ref);
+    hilb = hilbert(thal_ch_norm_filtered_so(ref,:));
+    spiLoc = transpose(round(sepratedSpindles.sepratedSpindles.localSPindles{1, shank}(:,2)*fs))  ;
+    spiglob = transpose(round(sepratedSpindles.sepratedSpindles.globalSPindles{1, shank}(:,2)*fs));
+
+    re = real(hilb);
+    im = imag(hilb);
+    
+    phssLoc = im(spiLoc);
+    phaseGlob = im(spiglob);
+    So_Hilbert_phase.Local = phssLoc;
+    So_Hilbert_phase.Global = phaseGlob;
+    save (['So_Hilbert_phase' num2str(i)],"So_Hilbert_phase")
+end
