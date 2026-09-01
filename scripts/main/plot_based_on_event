@@ -1,0 +1,60 @@
+% This code visualizes thalamic spindle events across all recording channels.
+% For each spindle event, it plots the corresponding neural signals,
+% marks spindle onset and offset, and highlights the reference channel.
+
+clc
+clear 
+close all
+%%
+load thal_ch_norm_filtered9.mat
+load thal_spindles9.mat
+load sepratedSpindles9.mat
+load SWS_episode9.mat
+%% plot base on events 
+spindle_event = 50;
+ch_number = size(thal_ch_norm_filtered.thal_ch_norm_filtered,1);
+fs=1250;
+for k=1:spindle_event
+    figure
+    hold on
+    for i=1:ch_number
+    %    load (['real_peaks' num2str(i) '.mat'],'real_peaks')
+%         load  (['thal_spindles_ch' num2str(1) '.mat'])
+        bias=i;
+       start_sample=(thal_spindles{1, sepratedSpindles.sepratedSpindles.referencChannel}.thal_spindles (k,1)-3)*fs;
+       end_sample= (thal_spindles{1, sepratedSpindles.sepratedSpindles.referencChannel}.thal_spindles(k,3)+3)*fs;
+       t1=(start_sample:end_sample)/fs;
+       thal_ch_norm_filtered_sample = thal_ch_norm_filtered.thal_ch_norm_filtered (i,start_sample:end_sample);
+       sws_sample = 0.5*(zscore(SWS_episode.SWS_episode(i,start_sample:end_sample)));
+       if i == sepratedSpindles.sepratedSpindles.referencChannel
+       plot (t1,thal_ch_norm_filtered_sample+bias,'r','LineWidth',2)
+       s_ind = find(thal_spindles{1, sepratedSpindles.sepratedSpindles.referencChannel}.thal_spindles  (:, 1) > start_sample/fs & thal_spindles{1, sepratedSpindles.sepratedSpindles.referencChannel}.thal_spindles  (:, 3) < end_sample/fs, 1, "first");
+        if ~isempty(s_ind)
+          plot(thal_spindles{1, sepratedSpindles.sepratedSpindles.referencChannel}.thal_spindles (s_ind,1),thal_ch_norm_filtered.thal_ch_norm_filtered(i,round(thal_spindles{1, sepratedSpindles.sepratedSpindles.referencChannel}.thal_spindles(s_ind,1)*fs))+bias,'*k')
+          plot(thal_spindles{1, sepratedSpindles.sepratedSpindles.referencChannel}.thal_spindles(s_ind,3),thal_ch_norm_filtered.thal_ch_norm_filtered(i,round(thal_spindles{1, sepratedSpindles.sepratedSpindles.referencChannel}.thal_spindles(s_ind,3)*fs))+bias,'*m')
+          xline ((thal_spindles{1, sepratedSpindles.sepratedSpindles.referencChannel}.thal_spindles (s_ind,1)-0.25),'Color','k','LineWidth',2)
+          xline ((thal_spindles{1, sepratedSpindles.sepratedSpindles.referencChannel}.thal_spindles (s_ind,3)+0.25),'Color','k','LineWidth',2)
+    
+        end
+        
+       else 
+           plot (t1,thal_ch_norm_filtered_sample+bias,'b')
+         s_ind = find(thal_spindles{1, i}.thal_spindles  (:, 1) > start_sample/fs & thal_spindles{1, i}.thal_spindles  (:, 3) < end_sample/fs, 1, "first");
+                    if ~isempty(s_ind)
+                      plot(thal_spindles{1, i}.thal_spindles (s_ind,1),thal_ch_norm_filtered.thal_ch_norm_filtered(i,round(thal_spindles{1, i}.thal_spindles(s_ind,1)*fs))+bias,'*k')
+                      plot(thal_spindles{1, i}.thal_spindles(s_ind,3),thal_ch_norm_filtered.thal_ch_norm_filtered(i,round(thal_spindles{1, i}.thal_spindles(s_ind,3)*fs))+bias,'*m')
+                    end
+       end
+       
+    
+    end
+   
+    title('Spindles for chanel in thalamus ' )
+    xlabel('time(s)')
+    ylabel('Chanels')
+    ylim([-1 66])
+%     set(groot, 'defaultFigureColor', [1 1 1]);
+% set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0 ], 'defaultAxesZColor', [0 0 0]); 
+
+%     set(gca,'fontsize',16, 'color', [0 0 0 ]);
+end 
