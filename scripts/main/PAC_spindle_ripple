@@ -1,0 +1,197 @@
+
+% Computes and visualizes phase-amplitude coupling (PAC) for global and
+% local spindle events across multiple sessions, including PAC time-frequency
+% maps, phase distributions, and coupling-strength histograms.
+
+clc 
+clear
+close all
+
+%% 
+% % load thal_ch_norm_filtered_ChooseOneChannelFromEachShanks.mat
+% load SWS_episode.mat
+% load SOdetectedForChooseOneChannelFromEachShank.mat
+% load SOreferenceChannelDelayAndRatio.mat
+paths = dir('*/firing rate spindles*');
+[nRawspath, ~] = size(paths);
+
+fs = 1250;
+SessionNum = 18;
+MeanPacPhaseglob = zeros(1,SessionNum);
+MeanPacPhaseLoc = zeros(1,SessionNum);
+medianPacStrengthglob= zeros(1,SessionNum);
+medianPacStrengthLoc= zeros(1,SessionNum);
+%%
+        path = "D:\daniel\PAC figures\spindles-SPWR";
+nbin=50;
+ 
+% [y,IsBlip] = SOMolle(thal_ch_norm_filtered_ChooseOneChannelFromEachShanks(1,:));
+for i=1:SessionNum
+    clc
+    display( ['session is = ' num2str(i)])
+
+    load (['SWS_episode' num2str(i) '.mat'])
+    load(['sepratedSpindles' num2str(i) '.mat'])
+%     load (['refSochannels' num2str(i) '.mat' ])
+%     load (['SOreferenceChannelDelayAndRatioFrom0.5to4Hz' num2str(i) '.mat'])
+    %% for all events 
+%     pac_all = PAC(1, [-2.5 -2], false, true);
+%     
+%     data = SWS_episode(1,:);
+%     event_sample = find(SOdetected.ISBLIPE(1, :) == 1);
+%     
+%     pac_all.Run(data, [7 15], data, [0.5 4], event_sample, fs);
+%     
+%     % plot(pac_all)
+%     
+%     figure
+%     imagesc(pac_all.Time, pac_all.Freq, pac_all.MeanTFR);
+%     set(gca,'YDir', 'normal');
+%     hold on;
+%     plot(pac_all.Time, pac_all.MeanData/max(pac_all.MeanData)*2+11, 'k', 'LineWidth', 2);
+%     title(['PAC for all events (session)=' num2str(i)],'Color','k')
+%     xlabel('Time (s)');
+%     ylabel('Freq');
+%     set(gca,'fontsize',16,'color',[0 0 0])
+%     set(groot, 'defaultFigureColor', [0 0 0]);
+%     set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+%     
+%     figure
+%     circ_plot(phase(pac_all.SI), 'hist', [], 20,true,true,'linewidth',2,'color','r')
+%     set(gca,'fontsize',16,'color',[0 0 0])
+%     set(groot, 'defaultFigureColor', [0 0 0]);
+%     set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+%     title(['angle for all events (session) = ' num2str(i) ],'Color','k')
+%     
+%     figure
+%     histogram(abs(pac_all.SI),'FaceColor','b')
+%     title('strength for all events ','Color','k')
+%     set(gca,'fontsize',16,'color',[0 0 0])
+%     set(groot, 'defaultFigureColor', [1 1 1 ]);
+%     set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+%     
+    %% events with biger ratio
+    pac_glob = PAC(1, [-2.5 -2], false, true);
+    
+    data = SWS_episode.SWS_episode  (sepratedSpindles.sepratedSpindles.referencChannel(1,1) ,:);
+%     indexBig = find(SOreferenceChannelDelayAndRatio.ratio (1, :) > 0.5);
+    refShank = getRefSpindleChannel(sepratedSpindles.sepratedSpindles.referencChannel(1,1));
+    indexGlobal = sepratedSpindles.sepratedSpindles.globalSPindles{2, refShank} ;
+%     event_sample = find(SOdetected.ISBLIPE(refSochannels.refCh, :) == 1);
+
+%     event_sample_big = event_sample(indexBig);
+    event_sample_glob = indexGlobal(2,:);
+    pac_glob.Run(data, [150 200], data, [7 15], event_sample_glob, fs);
+
+    figure(i)
+    
+    subplot(3,2,1)
+    
+    imagesc(pac_glob.Time, pac_glob.Freq, pac_glob.MeanTFR);
+    set(gca,'YDir', 'normal');
+    hold on 
+    plot(pac_glob.Time, pac_glob.MeanData/max(pac_glob.MeanData)*20+175, 'LineWidth', 2,'Color','k');
+    
+    xlabel('Time (s)');
+    ylabel('Freq');
+    set(gca,'fontsize',16)
+    set(groot, 'defaultFigureColor', [1 1 1]);
+    set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+    title(['PAC for global spindles session = ' num2str(i)])
+    
+    
+    subplot(3,2,3)
+    circ_plot(phase(pac_glob.SI), 'hist', [], 20,true,true,'linewidth',2,'color','b')
+    set(gca,'fontsize',16)
+    set(groot, 'defaultFigureColor', [1 1 1]);
+    set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);title (['angle for big events session = ' num2str(i)])
+        title ('angle for global ')
+
+    subplot(3,2,5)
+    histogram(abs(pac_glob.SI),nbin,'FaceColor','b')
+    title(['strength for global spindles session ' num2str(i)])
+    
+    set(gca,'fontsize',16)
+    set(groot, 'defaultFigureColor', [1 1 1]);
+    set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);    
+    %% events with shorter ratio
+    pac_Loc = PAC(1, [-2.5 -2], false, true);
+    
+%     data = SWS_episode(1,:);
+    indexLoc= sepratedSpindles.sepratedSpindles.localSPindles{2,refShank}  ;
+    event_sample_Loc = indexLoc(2,:);
+    
+    pac_Loc.Run(data, [150 200], data, [7 15], event_sample_Loc, fs);
+    
+    subplot(3,2,2)
+    imagesc(pac_Loc.Time, pac_Loc.Freq, pac_Loc.MeanTFR);
+    set(gca,'YDir', 'normal');
+     hold on 
+
+    plot(pac_Loc.Time, pac_Loc.MeanData/max(pac_Loc.MeanData)*20+175, 'k', 'LineWidth', 2);
+    xlabel('Time (s)');
+    ylabel('Freq');
+    set(gca,'fontsize',16)
+    set(groot, 'defaultFigureColor', [1 1 1]);
+    set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+    title (['PAC for local spindles  session = ' num2str(i)])
+    
+    subplot(3,2,4)
+    circ_plot(phase(pac_Loc.SI), 'hist', [], 20,true,true,'linewidth',2,'color','r')
+    set(gca,'fontsize',16)
+    set(groot, 'defaultFigureColor', [1 1 1]);
+    set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+    title ('angle for local ')
+    
+    subplot(3,2,6)
+    histogram(abs(pac_Loc.SI),nbin,'FaceColor','r')
+    title(['strength for local spindles  session ' num2str(i)])
+    set(gca,'fontsize',16)
+    set(groot, 'defaultFigureColor', [1 1 1]);
+    set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+
+    %%
+%     PAC_features.angleLoc = phase(pac_Loc.SI);
+%     PAC_features.strengthLoc = abs(pac_Loc.SI);
+%     PAC_features.angleglob = phase(pac_glob.SI);
+%     PAC_features.strengthglob = abs(pac_glob.SI);
+% %     PAC_features.angleAll = phase(pac_all.SI);
+% %     PAC_features.strengthALl = abs(pac_all.SI);
+%     save (['PAC_features_spindles_SPWR' num2str(i) '.mat'] ,'PAC_features')
+%     MeanPacPhaseglob(i) = mean(PAC_features.angleglob);
+%     MeanPacPhaseLoc(i) = mean(PAC_features.angleLoc);
+%     medianPacStrengthglob(i) = median(PAC_features.strengthglob);
+%     medianPacStrengthLoc(i) = median(PAC_features.strengthLoc);
+
+
+end
+% PAC_featuresAll.MeanPacPhaseBig = MeanPacPhaseglob;
+% PAC_featuresAll.MeanPacPhaseshort = MeanPacPhaseLoc;
+% PAC_featuresAll.medianPacStrengthBig = medianPacStrengthglob;
+% PAC_featuresAll.medianPacStrengthShort = medianPacStrengthLoc;
+% save('PAC_featuresAll_spindles_SPWR','PAC_featuresAll')
+% %       save figures
+
+        
+        
+%         Get handles of all open figures
+        figures = findobj('Type','figure');
+                        
+%         Maximize each figure
+        for n = 1:length(figures)
+            set(figures(n),'WindowState','maximized');
+        end
+        
+%         Get the path to the directory where you want to save the figures
+        save_path = (path);
+        
+%         Get a list of all open figures
+        fig_list = findobj('Type', 'figure');
+        
+%         Save each figure to the specified path
+        for n= 1:length(fig_list)
+            fig = fig_list(n);
+            saveas(fig, fullfile(save_path, sprintf('figure_%d.png', n)));
+                saveas(fig, fullfile(save_path, sprintf('figure_%d.fig', n)));
+        
+        end
