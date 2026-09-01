@@ -1,0 +1,353 @@
+%% Phase coupling analysis between thalamic spindles and neuronal spikes
+% This script analyzes the phase relationship between thalamic spindle
+% activity and neuronal spiking across multiple recording sessions. For
+% each neuron, the script identifies its corresponding reference channel
+% and extracts the instantaneous phase of the thalamic signal using the
+% Hilbert transform. Spike phases are then obtained around spindle events
+% using a ±0.25-s time window.
+%
+% Spindle events are separated into global and local spindles based on the
+% previously classified spindle populations. The phase distributions of
+% spikes occurring around all spindles, global spindles, and local spindles
+% are independently extracted and tested for non-uniformity using the
+% circular Rayleigh test. Neurons showing significant phase locking
+% (p < 0.05) are counted and their mean preferred phases are calculated.
+%
+% Circular histograms are generated for significantly coupled neurons,
+% together with the corresponding mean phase and statistical significance.
+% Finally, the mean phase distributions across all analyzed neurons are
+% evaluated separately for all, global, and local spindle events. The
+% resulting figures are saved in both PNG and MATLAB FIG formats for
+% subsequent visualization and analysis.
+
+
+clc
+clear
+close all
+%%
+tic
+session_num =18;
+phase_total = cell(1,session_num);
+phase_total_global = cell(1,session_num);
+phase_total_local = cell(1,session_num);
+count1 = 0;
+count_local=0;
+count_global =0;
+all_neuron=0;
+
+for i=2:session_num
+    disp(['session is :' num2str(i)])
+   load (['thal_ch_norm_filtered' num2str(i) '.mat'])
+       load (['SpikesBaseOnLocation' num2str(i) '.mat'])
+       load (['sepratedSpindles' num2str(i) '.mat'])
+       load(['thal_spindles' num2str(i) '.mat'])
+       load (['real_peaks' num2str(i) '.mat'])
+       
+    fs=1250;
+    %exclude channels with low rate
+    temp = [];
+    spikes_sws= SpikesBaseOnLocation.SpikesBaseOnLocation.Thalamus;
+    for j=1:size(spikes_sws,1)
+        sp = find(spikes_sws(j,:)==1);
+        FR = length(sp)/(length(spikes_sws(j,:))/fs);
+        if FR<0.5
+            temp = [temp j];
+        end
+    end
+    spikes_sws(temp,:)=[];
+    SpikesBaseOnLocation.SpikesBaseOnLocation.ThalamousshankIDs(temp) = [];
+%     ph = angle(hilbert(thal_ch_norm_filtered.thal_ch_norm_filtered(sepratedSpindles.sepratedSpindles.referencChannel(1,1),:))) ;
+    phase = cell(1,size(spikes_sws,1));
+    phase_glob = cell(1,size(spikes_sws,1));
+    phase_loc = cell(1,size(spikes_sws,1));
+        all_neuron = all_neuron + size(spikes_sws,1);
+        interval = round(0.25*fs);
+        
+    for j=1:size(spikes_sws,1)
+        ref = sepratedSpindles.sepratedSpindles.referencChannelForEachChannel(1,...
+            SpikesBaseOnLocation.SpikesBaseOnLocation.ThalamousshankIDs (1,j));
+            ph = angle(hilbert(thal_ch_norm_filtered.thal_ch_norm_filtered(ref,:))) ;
+
+            shank_ref = find(sepratedSpindles.sepratedSpindles.referencChannelForEachChannel(1,:) == ref);            Real_peaks = real_peaks{1,ref}.real_peaks(2,:);
+        
+            glob_spin = sepratedSpindles.sepratedSpindles.globalSPindles{1,shank_ref};
+            glob_Lia = ismember(thal_spindles{1,ref}.thal_spindles(:,1),glob_spin(:,1));
+            glob_real_picks = Real_peaks(glob_Lia == 1);
+
+            loc_spin = sepratedSpindles.sepratedSpindles.localSPindles{1,shank_ref};
+            loc_lia = ismember(thal_spindles{1,ref}.thal_spindles(:,1),loc_spin(:,1));
+            loc_real_picks = Real_peaks(loc_lia == 1);
+%             thal_ref = thal_spindles{1,ref}.thal_spindles(:,1);
+%         glob_ind = find(thal_ref == glob_spin(:,1))    ;
+%          glob_spin_onset = glob_spin(:,1);
+         
+        Real_peaks(Real_peaks < interval | Real_peaks > length(ph)-interval) = [];
+        loc_real_picks(loc_real_picks < interval | loc_real_picks > length(ph)-interval) = [];
+        glob_real_picks(glob_real_picks < interval | glob_real_picks > length(ph)-interval) = [];
+
+
+%         start_spin = round(thal_spindles{1,sepratedSpindles.sepratedSpindles.referencChannel(1,1)}.thal_spindles(:,1)*fs);
+
+          
+%         end_spin = round(thal_spindles{1,sepratedSpindles.sepratedSpindles.referencChannel(1,1)}.thal_spindles(:,3)*fs);
+        end_spin = Real_peaks + interval;
+        start_spin = Real_peaks - interval;
+        
+        end_spin_glob = glob_real_picks + interval;
+        start_spin_glob = glob_real_picks - interval;
+
+        end_spin_loc = loc_real_picks + interval;
+        start_spin_loc = loc_real_picks - interval;
+
+            phasetotal_se =[];
+            phasetotal_se_glob =[];
+            phasetotal_se_loc =[];
+        for k=1:size(start_spin,2)
+
+            start_spin(start_spin(1,k) < 0 ) = [];
+            end_spin(end_spin(1,k) > length(ph)) = [];
+
+
+        phase_for_each_spi = ph(spikes_sws(j,start_spin(1,k):end_spin(1,k))==1);
+        phasetotal_se = [phasetotal_se phase_for_each_spi];
+
+
+        end
+        for k=1:size(start_spin_glob,2)
+            
+            start_spin_glob(start_spin_glob(1,k) < 0 ) = [];
+            end_spin_glob(end_spin_glob(1,k) > length(ph)) = [];
+            
+
+            phase_for_each_spi_glob = ph(spikes_sws(j,start_spin_glob(1,k):end_spin_glob(1,k))==1);
+            phasetotal_se_glob = [phasetotal_se_glob phase_for_each_spi_glob];
+
+        end
+        
+        for k=1:size(start_spin_loc)
+            
+            start_spin_loc(start_spin_loc(1,k) < 0 ) = [];
+            end_spin_loc(end_spin_loc(1,k) > length(ph)) = [];
+            
+
+            phase_for_each_spi_loc = ph(spikes_sws(j,start_spin_loc(1,k):end_spin_loc(1,k))==1);
+            phasetotal_se_loc = [phasetotal_se_loc phase_for_each_spi_loc];
+
+        end
+        phase{1,j} = phasetotal_se;
+        phase_glob{1,j} = phasetotal_se_glob;
+        phase_loc{1,j} = phasetotal_se_loc;
+        if isempty(phasetotal_se)
+            continue
+        else 
+            [pval, z] = circ_rtest(phasetotal_se);
+            % Display results
+            if pval < 0.05
+                disp(['P-value is =   ' num2str(pval)]);
+            %     disp(['mean phase of PAC for short is ' num2str(meanModuIndexLoc)]);
+                fprintf('phase distribution is not uniform \n');
+                count1 = count1+1;
+            
+                %plot
+                    mean_spi_spn(i,j) = circ_mean(phasetotal_se);
+    
+                nbin=20;
+                figure
+                
+                polarhistogram(phasetotal_se,nbin,'FaceColor','k','Normalization','probability')
+                hold on 
+                min_max_r = rlim;
+                polarplot([mean_spi_spn(i,j) mean_spi_spn(i,j)],min_max_r,'-.k','LineWidth',2)
+                legend('distribution',['mean = ' num2str(mean_spi_spn(i,j))])
+                title(['circular histogram of coupling between spindles and spikes in session ' num2str(i) 'and neuron' num2str(j)])
+                text('FontSize', 12, 'Color', 'k', 'Position',[min_max_r(1)+25 min_max_r(2)],'String',['p-value = ' num2str(pval)]);
+%                 axis square
+            
+            else
+                disp(['P-value is =   ' num2str(pval)]);
+            %     disp(['mean phase of PAC rate for short is ' num2str(meanModuIndexLoc)]);
+                fprintf('phase distribution is uniform \n');
+            end
+            % fprintf('p-value: %.4f\n', p);
+        end
+
+        if isempty(phasetotal_se_glob)
+            continue
+        else 
+            [pval, z] = circ_rtest(phasetotal_se_glob);
+            % Display results
+            if pval < 0.05
+                disp(['P-value is =   ' num2str(pval)]);
+            %     disp(['mean phase of PAC for short is ' num2str(meanModuIndexLoc)]);
+                fprintf('phase distribution is not uniform \n');
+                count_global = count_global+1;
+            
+                %plot
+                    mean_spi_spn_glob(i,j) = circ_mean(phasetotal_se_glob);
+    
+                nbin=20;
+                figure
+                
+                polarhistogram(phasetotal_se_glob,nbin,'FaceColor','b','Normalization','probability')
+                hold on 
+                min_max_r = rlim;
+                polarplot([mean_spi_spn_glob(i,j) mean_spi_spn_glob(i,j)],min_max_r,'-.k','LineWidth',2)
+                legend('distribution',['mean = ' num2str(mean_spi_spn_glob(i,j))])
+                title(['circular histogram of coupling between global spindles and spikes in session ' num2str(i) 'and neuron' num2str(j)])
+                text('FontSize', 12, 'Color', 'k', 'Position',[min_max_r(1)+25 min_max_r(2)],'String',['p-value = ' num2str(pval)]);
+%                 axis square
+            
+            else
+                disp(['P-value is =   ' num2str(pval)]);
+            %     disp(['mean phase of PAC rate for short is ' num2str(meanModuIndexLoc)]);
+                fprintf('phase distribution is uniform \n');
+            end
+            % fprintf('p-value: %.4f\n', p);
+        end
+
+        if isempty(phasetotal_se_loc)
+            continue
+        else 
+            [pval, z] = circ_rtest(phasetotal_se_loc);
+            % Display results
+            if pval < 0.05
+                disp(['P-value is =   ' num2str(pval)]);
+            %     disp(['mean phase of PAC for short is ' num2str(meanModuIndexLoc)]);
+                fprintf('phase distribution is not uniform \n');
+                count_local = count_local+1;
+            
+                %plot
+                    mean_spi_spn_local(i,j) = circ_mean(phasetotal_se_loc);
+    
+                nbin=20;
+                figure
+                
+                polarhistogram(phasetotal_se_loc,nbin,'FaceColor','r','Normalization','probability')
+                hold on 
+                min_max_r = rlim;
+                polarplot([mean_spi_spn_local(i,j) mean_spi_spn_local(i,j)],min_max_r,'-.k','LineWidth',2)
+                legend('distribution',['mean = ' num2str(mean_spi_spn_glob(i,j))])
+                title(['circular histogram of coupling between local spindles and spikes in session ' num2str(i) 'and neuron' num2str(j)])
+                text('FontSize', 12, 'Color', 'k', 'Position',[min_max_r(1)+25 min_max_r(2)],'String',['p-value = ' num2str(pval)]);
+%                 axis square
+            
+            else
+                disp(['P-value is =   ' num2str(pval)]);
+            %     disp(['mean phase of PAC rate for short is ' num2str(meanModuIndexLoc)]);
+                fprintf('phase distribution is uniform \n');
+            end
+            % fprintf('p-value: %.4f\n', p);
+        end
+  
+    end
+   phase_total{1,i} = phase; 
+   phase_total_global = phase_glob;
+   phase_total_local = phase_loc;
+    
+end
+
+
+
+
+%%
+magnificent_percent = (count1/all_neuron)*100;
+magnificent_percent_glob = (count_global/all_neuron)*100;
+magnificent_percent_local = (count_local/all_neuron)*100;
+
+nbin=20;
+figure
+mean_spi_spn(mean_spi_spn ==0 ) =[];
+[pval, z] = circ_rtest(mean_spi_spn);
+            % Display results
+            if pval < 0.05
+                disp(['P-value is =   ' num2str(pval)]);
+            %     disp(['mean phase of PAC for short is ' num2str(meanModuIndexLoc)]);
+                fprintf('phase distribution is not uniform \n');
+                 else
+                disp(['P-value is =   ' num2str(pval)]);
+            %     disp(['mean phase of PAC rate for short is ' num2str(meanModuIndexLoc)]);
+                fprintf('phase distribution is uniform \n');
+            end
+% mean_spi_spn(mean_spi_spn ==0 ) =[];
+polarhistogram(mean_spi_spn,nbin,'FaceColor','k','Normalization','probability')
+hold on 
+min_max_r = rlim;
+polarplot([mean(mean_spi_spn) mean(mean_spi_spn)],min_max_r,'-.k','LineWidth',2)
+legend('distribution',['mean = ' num2str(mean(mean_spi_spn))])
+title('circular histogram of mean coupling between spindles and spikes for all units ')
+text('FontSize', 12, 'Color', 'k', 'Position',[min_max_r(1)+50 min_max_r(2)],'String',['p-value = ' num2str(pval)]);
+% axis square
+figure
+mean_spi_spn_glob(mean_spi_spn_glob == 0) = [];
+[pval, z] = circ_rtest(mean_spi_spn_glob);
+            % Display results
+            if pval < 0.05
+                disp(['P-value is =   ' num2str(pval)]);
+            %     disp(['mean phase of PAC for short is ' num2str(meanModuIndexLoc)]);
+                fprintf('phase distribution is not uniform \n');
+                 else
+                disp(['P-value is =   ' num2str(pval)]);
+            %     disp(['mean phase of PAC rate for short is ' num2str(meanModuIndexLoc)]);
+                fprintf('phase distribution is uniform \n');
+            end
+polarhistogram(mean_spi_spn_glob,nbin,'FaceColor','b','Normalization','probability')
+hold on 
+min_max_r = rlim;
+polarplot([mean(mean_spi_spn_glob) mean(mean_spi_spn_glob)],min_max_r,'-.k','LineWidth',2)
+legend('distribution',['mean = ' num2str(mean(mean_spi_spn_glob))])
+title('circular histogram of mean coupling between global spindles and spikes for all units ')
+text('FontSize', 12, 'Color', 'k', 'Position',[min_max_r(1)+50 min_max_r(2)],'String',['p-value = ' num2str(pval)]);
+% axis square
+figure
+mean_spi_spn_local(mean_spi_spn_local == 0) = [];
+[pval, z] = circ_rtest(mean_spi_spn_local);
+            % Display results
+            if pval < 0.05
+                disp(['P-value is =   ' num2str(pval)]);
+            %     disp(['mean phase of PAC for short is ' num2str(meanModuIndexLoc)]);
+                fprintf('phase distribution is not uniform \n');
+                 else
+                disp(['P-value is =   ' num2str(pval)]);
+            %     disp(['mean phase of PAC rate for short is ' num2str(meanModuIndexLoc)]);
+                fprintf('phase distribution is uniform \n');
+            end
+polarhistogram(mean_spi_spn_local,nbin,'FaceColor','r','Normalization','probability')
+hold on 
+min_max_r = rlim;
+polarplot([mean(mean_spi_spn_local) mean(mean_spi_spn_local)],min_max_r,'-.k','LineWidth',2)
+legend('distribution',['mean = ' num2str(mean(mean_spi_spn_local))])
+title('circular histogram of mean coupling between local spindles and spikes for all units ')
+text('FontSize', 12, 'Color', 'k', 'Position',[min_max_r(1)+50 min_max_r(2)],'String',['p-value = ' num2str(pval)]);
+% axis square
+toc
+
+%% save figures 
+path = "D:\daniel\result\spike_spindle_couplig";
+  save figures
+% % 
+        clearFigures(path);
+        
+        
+%         Get handles of all open figures
+        figures = findobj('Type','figure');
+                        
+% %         Maximize each figure
+%         for n = 1:length(figures)
+%             set(figures(n),'WindowState','maximized');
+%         end
+        
+%         Get the path to the directory where you want to save the figures
+        save_path = (path);
+        
+%         Get a list of all open figures
+        fig_list = findobj('Type', 'figure');
+        
+%         Save each figure to the specified path
+        for n= 1:length(fig_list)
+            fig = fig_list(n);
+            saveas(fig, fullfile(save_path, sprintf('figure_%d.png', n)));
+                saveas(fig, fullfile(save_path, sprintf('figure_%d.fig', n)));
+        
+        end
+
+%        
