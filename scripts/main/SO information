@@ -1,0 +1,79 @@
+%% Percentage Analysis of Single and Double Slow Oscillations
+% This script quantifies the number and percentage of single and double
+% slow oscillations across 18 recording sessions. It computes session-wise
+% statistics, compares the two groups using a t-test, and visualizes their
+% percentage distributions with overlaid histograms.
+
+clc 
+clear 
+close all
+%%
+Session_num = 18;
+information_SO = zeros(18*6);
+for i=1:18
+    load( ['refSochannels' num2str(i) '.mat'])
+    load(['SOdetected' num2str(i) '.mat'])
+    ref = getRefSpindleChannel(refSochannels.refCh);
+    load(['ratio and delay for session and shank ' num2str(i) num2str(ref) '.mat'])
+    pick = find(SOdetected.ISBLIPE(refSochannels.refCh,:)==1);
+    double= pick(RatioAndDelay.ratio> 0.5);
+    single = pick(RatioAndDelay.ratio <= 0.5);    
+    information_SO(i,1) = i;
+    information_SO(i,2) = size(double,2);
+    information_SO(i,3) = size(single,2);
+    information_SO(i,4) = (size(double,2)/size(pick,2))*100;
+    information_SO(i,5) = (size(single,2)/size(pick,2))*100;
+    information_SO(i,6) = size(pick,2);
+end
+
+meanSingle = mean(information_SO(:,4));
+meandouble = mean(information_SO(:,5));
+
+[h, p] = ttest2(information_SO(:,4) ,information_SO(:,5));
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean amplitude for Global is ' num2str(meandouble)]);
+    disp(['mean amplitude for Local is ' num2str(meanSingle)]);
+    fprintf('There is a significant difference between the means.\n');
+        count = count+1;
+    ch_mag(k) = k;
+
+else
+    disp(['mean amplitude for Gloal is ' num2str(meandouble)]);
+    disp(['mean amplitude for Local is ' num2str(meanSingle)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+
+figure
+nbin=5;
+histogram(information_SO(:,4),nbin,'FaceColor','r','Normalization','probability')
+[NBig, BigEdge] = histcounts(meandouble);
+
+xline (meandouble,'Color','r','LineWidth',2,'LineStyle','--')
+
+hold on
+
+histogram (information_SO(:,5),10,'FaceColor','b','Normalization','probability')
+[NShort, ShortEdge] = histcounts(meanSingle);
+
+xline(meanSingle,'color','b','LineWidth',2,'LineStyle','--')
+ylabel('P')
+title('histogram of percentage single and double tops ')
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('percent','Color','k')
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Double tops',['Mean Double tops = ' num2str(meandouble)],...
+    'Single top',['Mean Single top = ' num2str(meanSingle)],['P-value =' num2str(p)]); 
+
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+histdim = [max(ShortEdge)/1.25 0.05];
+
+text('FontSize', 12, 'Color', 'k', 'Position', histdim,'String',['p-value = ' num2str(p)]);
+hold off
