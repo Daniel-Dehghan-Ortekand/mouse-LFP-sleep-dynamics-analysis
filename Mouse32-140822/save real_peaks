@@ -1,0 +1,28 @@
+%% Real peak data organization
+% This script loads real peak detection results from individual thalamic
+% channels and reorganizes them into a single cell array, where each cell
+% contains the peak information for one channel. The resulting channel-wise
+% real peak data are saved as a single MAT file for subsequent peak-based
+% analysis.
+
+clc 
+clear 
+close all 
+%%
+
+% pathsthal = dir('*/thal_spindles_ch*');
+
+
+for k=1:62
+% 
+%     filename = strcat(pathsthal(k).folder, filesep, pathsthal(k).name); % Use filesep instead of just '/'
+%     data = load(filename);
+       data= load(['real_peaks_140822_' num2str(k)]); 
+      real_peaks{k} = data;
+%     save(['thal_spindles' num2str(k)], 'thal_spindles', '-v7.3');
+%         clear data
+
+end
+save real_peaks18.mat real_peaks
+%%
+
