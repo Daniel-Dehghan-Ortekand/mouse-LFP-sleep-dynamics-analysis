@@ -1,0 +1,69 @@
+%% LFP data loading and NREM episode extraction
+% This script loads the EEG recording and session information, then reads
+% all recorded channels from the binary EEG file at a sampling frequency of
+% 1250 Hz. The complete multichannel EEG data are saved, followed by
+% extraction of NREM episodes using the predefined NREM time intervals.
+% The resulting NREM-only data and corresponding episode time intervals
+% are saved separately for subsequent neural signal analysis.
+
+clear 
+clc
+close all
+changeCurrentFolder('D:\daniel\Mouse20-130520')
+%% read the .EEG file and save all channel
+
+load Mouse20-130520.sessionInfo.mat
+nChannels = sessionInfo.nChannels;
+fs=1250;
+
+thal_allchanel_Mouse20_130520_new = bz_LoadBinary('Mouse20-130520.eeg','nChannels',nChannels,'frequency',fs);
+
+save thal_allchanel_Mouse20-130520 -v7.3
+OriginalData = thal_allchanel_Mouse20_130520_new;
+%% creat NREM EPISOD
+
+ch_number= nChannels;
+OriginalData=transpose(OriginalData);
+OriginalData=double(OriginalData);
+
+SwsTime = [1	201
+374	1079
+1171	1535
+1635	2020
+2056	2246
+2432	2945
+2964	3275
+3522	4076
+4098	4244
+5689	6226
+6255	6429
+6474	6707
+6856	7191.9
+10120	10917
+10974	11290
+11374	11535
+11565	11740
+12652	13104
+13222	13851
+14770	15201
+15252	15494
+15547	15781
+15860	15999
+16100	16162
+18351	19228];
+
+SWSpacket_num = size(SwsTime,1);
+
+
+SWS_ind = false(1, length(OriginalData));
+for i=1:SWSpacket_num
+%     start_sample = round(sws(i,1)*fs);
+%     stop_sample = round(sws(i,2)*fs);
+    start_time = round(SwsTime(i,1)*fs);
+    stop_time = round(SwsTime(i,2)*fs);
+    SWS_ind(start_time:stop_time) = 1;
+end
+SWS_episode = OriginalData(:,SWS_ind);
+
+save SWS_episode_130520.mat  SWS_episode -v7.3
+save Sws_Time_130520.mat    SwsTime
