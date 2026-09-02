@@ -1,0 +1,46 @@
+%% LFP data loading and NREM episode extraction
+% This script loads the EEG recording and corresponding session information
+% and sleep-state annotations, then reads all recorded channels from the
+% binary EEG file using the specified sampling frequency. The complete EEG
+% data are saved, followed by extraction of all NREM episodes based on the
+% annotated NREM time intervals. The resulting NREM-only data and episode
+% time information are saved separately for subsequent analysis.
+
+clear 
+clc
+close all
+changeCurrentFolder('D:\daniel\Mouse32-140822')
+%% read the .EEG file and save all channel
+
+load Mouse32-140822.sessionInfo.mat
+load Mouse32-140822.SleepStateEpisodes.states.mat
+nChannels = sessionInfo.nChannels;
+fs=1250;
+
+thal_allchanel_Mouse32_140822_new = bz_LoadBinary('Mouse32-140822.eeg','nChannels',nChannels,'frequency',fs);
+
+save thal_allchanel_Mouse32-140822 -v7.3
+OriginalData = thal_allchanel_Mouse32_140822_new;
+%% creat NREM EPISOD
+
+ch_number= nChannels;
+OriginalData=transpose(OriginalData);
+OriginalData=double(OriginalData);
+
+SwsTime = SleepStateEpisodes.ints.NREMepisode;
+
+SWSpacket_num = size(SwsTime,1);
+
+
+SWS_ind = false(1, length(OriginalData));
+for i=1:SWSpacket_num
+%     start_sample = round(sws(i,1)*fs);
+%     stop_sample = round(sws(i,2)*fs);
+    start_time = round(SwsTime(i,1)*fs);
+    stop_time = round(SwsTime(i,2)*fs);
+    SWS_ind(start_time:stop_time) = 1;
+end
+SWS_episode = OriginalData(:,SWS_ind);
+
+save SWS_episode_140822.mat  SWS_episode -v7.3
+save Sws_Time_140822.mat    SwsTime
