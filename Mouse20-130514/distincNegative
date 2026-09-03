@@ -1,0 +1,20 @@
+%% Checking for negative values within a window
+% This function checks whether the input window contains at least one
+% negative value. It returns a logical value indicating whether a negative
+% element is present in the input.
+
+function [neg] = distincNegative(lengthOfwindow)
+v = lengthOfwindow;
+
+for i = 1:length(v)
+  if v(i) < 0
+      neg = true;
+    break
+  else 
+      neg = false;
+  end
+
+  
+
+end
+end
