@@ -1,0 +1,100 @@
+%% Converting spike times to a matrix and extracting NREM spikes
+% This script loads the detected spike times for all recorded cells and
+% determines the maximum number of spikes among the cells. The cell-based
+% spike-time data are then converted into a zero-padded matrix, where each
+% column represents one cell and each row corresponds to a spike time.
+% The resulting matrix is saved for subsequent analysis.
+%
+% The predefined NREM/SWS episode time intervals are then used to create a
+% sample-based logical index corresponding to all NREM periods. Spike times
+% from each cell are mapped to the nearest EEG recording sample and
+% converted into a binary spike-train representation.
+%
+% The spike trains are subsequently restricted to the NREM/SWS periods,
+% producing a matrix containing the spike activity of all recorded cells
+% exclusively during NREM episodes. The resulting NREM spike-train matrix
+% is saved for subsequent neuronal activity analysis.
+
+clc
+clear 
+close all
+tic
+%% 
+load    Mouse17-130128.spikes.cellinfo.mat
+CellNum = size(spikes.times ,2);
+%choose the longest length for Cell array 
+MaxLen = 0;
+for j=1:CellNum
+    if length(spikes.times{1,j})>MaxLen
+        MaxLen = length((spikes.times{1,j}));
+    end
+end  
+
+% exclude spikes times from cell array to a matrix
+SpikesTimesAllCells = zeros(MaxLen,CellNum);
+for i=1:CellNum
+ SpikesTimesAllCells(1:length(spikes.times{:,i}),i) = cell2mat(spikes.times(:,i));
+end 
+
+%save data 
+save    SpikesTimesAllCells130128.mat SpikesTimesAllCells
+
+%%
+load    SpikesTimesAllCells130128.mat
+%SWS times Episode 
+SwsTime = [618	1456
+1581	2385
+2428	2555
+2848	3126
+3173	3372
+3438	3546
+3767	3778.3
+3778.3	4294
+4321	4548
+4865	4941
+4993	5114
+9556	10629
+10814	11193
+11333	11651
+11823	12480
+12681	12952
+13038	13302
+15260	15283
+15283	15637
+15647	15803
+15976	16327
+16337	16507
+16589	16745
+16985	17301
+17337	17497
+17727	17881
+];
+
+fs = 1250;
+%% main code 
+ChCell = size(SpikesTimesAllCells ,2);
+SwsEpisodeNum = size(SwsTime,1);
+
+mf = matfile("thal_allchanel_Mouse17-130128.mat");
+all_size = size(mf, "thal_allchanel_Mouse17_130128_new", 1);
+all_time = (0:all_size-1)/fs;
+
+SWS_ind = false(1, all_size);
+for i=1:SwsEpisodeNum
+    start_sample = round(SwsTime(i,1)*fs);
+    stop_sample = round(SwsTime(i,2)*fs);
+    SWS_ind(start_sample:stop_sample) = 1;
+end
+
+spikes_sws = false(ChCell, sum(SWS_ind));
+for i=1:ChCell
+    ind = nearestpoint(SpikesTimesAllCells(:,i), all_time);
+    s = false(1, all_size);
+    s(ind) = 1;
+
+    spikes_sws(i, :) = s(SWS_ind);
+
+end
+save SpikesSWS130128.mat spikes_sws
+
+toc
