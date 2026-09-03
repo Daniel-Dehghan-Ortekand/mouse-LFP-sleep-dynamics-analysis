@@ -1,0 +1,252 @@
+%% Comparing global and local spindle characteristics
+% This script compares global and local sleep spindles based on their
+% amplitude, duration, neuronal firing rate, and modulation index (MI).
+%
+% For each spindle characteristic, the mean value is calculated for global
+% and local spindles, and statistical comparisons are performed using
+% independent or paired t-tests according to the corresponding data.
+%
+% The distributions of spindle amplitude, duration, and firing rate are
+% visualized using histograms with their corresponding mean values and
+% p-values. The modulation indices of global and local spindles are also
+% compared using a histogram and a box plot.
+%
+% The resulting statistical comparisons and figures are used to evaluate
+% differences in the characteristics of global and local sleep spindles.
+% All generated figures are saved as PNG files in the specified output
+% directory.
+
+clc 
+clear
+ close all
+changeCurrentFolder('D:\daniel\Mouse17-130203')
+%%
+load sepratedSpindles130203.mat sepratedSpindles130203
+load thal_ch_norm_filtered_130203.mat
+load (['real_peaks_130203_' num2str(sepratedSpindles130203.referencChannel) '.mat'])
+
+%% amplitude compare
+fs=1250;
+
+
+globamp = sepratedSpindles130203.globalPeaks(1,:);
+locamp = sepratedSpindles130203.LocalPeaks(1,:);
+
+meanglobamp = mean(globamp);
+meanlocamp = mean(locamp);
+
+% Perform t-test
+[h, p] = ttest2(globamp, locamp);
+
+% Display results
+if h
+    disp(['mean amplitude for global is ' num2str(meanglobamp)]);
+    disp(['mean amplitude for local is ' num2str(meanlocamp)]);
+    fprintf('There is a significant difference between the means.\n');
+else
+    disp(['mean amplitude for global is ' num2str(meanglobamp)]);
+    disp(['mean amplitude for local is ' num2str(meanlocamp)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+%plot 
+figure
+nbin=50;
+histogram(globamp,nbin,'FaceColor','b')
+xline (meanglobamp,'Color','b','LineWidth',2,'LineStyle','--')
+
+hold on
+histogram (locamp,nbin,'FaceColor','r')
+xline(meanlocamp,'color','r','LineWidth',2,'LineStyle','--')
+
+title('amplitude compare ','Color','k')
+xlabel('amplitude','Color','k')
+
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = ' num2str(meanlocamp)]); % Fix the closing parenthesis
+
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+text('FontSize', 20, 'Color', 'k', 'Position', [0.7, 35],'String',['p-value = ' num2str(p)]);
+hold off
+
+%% duration compare
+%duration for globals 
+onsetGlob = transpose(sepratedSpindles130203.globalSPindles(:,1));
+offsetGlob = transpose(sepratedSpindles130203.globalSPindles(:,3));
+durationGlob = offsetGlob - onsetGlob ;
+
+% duration for locals 
+
+onsetLoc = transpose(sepratedSpindles130203.localSPindles(:,1));
+offsetLoc = transpose(sepratedSpindles130203.localSPindles(:,3));
+durationLoc = offsetLoc - onsetLoc ;
+
+% compute means
+
+meanDurationGlob = mean(durationGlob);
+meanDurationLoc = mean(durationLoc);
+
+
+% Perform t-test
+[h, p] = ttest2(durationGlob, durationLoc);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean duration for Global ratio is ' num2str(meanDurationGlob)]);
+    disp(['mean duration for Local ratio is ' num2str(meanDurationLoc)]);
+    fprintf('There is a significant difference between the means.\n');
+else
+    disp(['mean duration for Global ratio is ' num2str(meanDurationGlob)]);
+    disp(['mean duration for Local ratio is ' num2str(meanDurationLoc)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+
+%plot 
+
+figure
+nbin=50;
+histogram(durationGlob,nbin,'FaceColor','b')
+xline (meanDurationGlob,'Color','b','LineWidth',2,'LineStyle','--')
+hold on
+histogram (durationLoc,nbin,'FaceColor','r')
+xline(meanDurationLoc,'color','r','LineWidth',2,'LineStyle','--')
+
+title('histogram of duration for global and Local ','Color','k')
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('duration','Color','k')
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Global',['Mean Global = ' num2str(meanDurationGlob)],'Local',['Mean Local = ' num2str(meanDurationLoc)]); 
+
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+text('FontSize', 20, 'Color', 'k', 'Position', [0.7, 35],'String',['p-value = ' num2str(p)]);
+hold off
+
+%% firing rate
+load FiringrateSpindles130203.mat 
+
+meanfiringRateGlob = mean(FiringrateSpindles130203.Global);
+meanfiringRateLoc = mean(FiringrateSpindles130203.Local);
+
+
+% Perform t-test
+[h, p] = ttest(FiringrateSpindles130203.Global, FiringrateSpindles130203.Local);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean firing rate for big is ' num2str(meanfiringRateGlob)]);
+    disp(['mean firing rate for short is ' num2str(meanfiringRateLoc)]);
+    fprintf('There is a significant difference between the means.\n');
+else
+    disp(['mean firing rate for big is ' num2str(meanfiringRateGlob)]);
+    disp(['mean firing rate for short is ' num2str(meanfiringRateLoc)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+%plot
+
+%plot 
+
+figure
+nbin=50;
+histogram(FiringrateSpindles130203.Global,nbin,'FaceColor','b')
+xline (meanfiringRateGlob,'Color','b','LineWidth',2,'LineStyle','--')
+hold on
+histogram (FiringrateSpindles130203.Local,nbin,'FaceColor','r')
+xline(meanfiringRateLoc,'color','r','LineWidth',2,'LineStyle','--')
+
+title('histogram of Firingrate for global and Local ','Color','k')
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('Firing rate','Color','k')
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Global',['Mean Global = ' num2str(meanfiringRateGlob)],'Local',['Mean Local = ' num2str(meanfiringRateLoc)]); 
+
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+text('FontSize', 20, 'Color', 'k', 'Position', [1.5, 50],'String',['p-value = ' num2str(p)]);
+hold off
+
+%% MI
+load ModuIndex130203.mat 
+meanModuIndexGlob = mean(ModuIndex130203.GLobal  );
+meanModuIndexLoc = mean(ModuIndex130203.Local);
+
+
+% Perform t-test
+[h, p] = ttest(ModuIndex130203.GLobal , ModuIndex130203.Local);
+
+% Display results
+if isnan(h)
+    disp('Error in performing t-test.');
+elseif h
+    disp(['mean firing rate for big is ' num2str(meanModuIndexGlob)]);
+    disp(['mean firing rate for short is ' num2str(meanModuIndexLoc)]);
+    fprintf('There is a significant difference between the means.\n');
+else
+    disp(['mean firing rate for big is ' num2str(meanModuIndexGlob)]);
+    disp(['mean firing rate for short is ' num2str(meanModuIndexLoc)]);
+    fprintf('There is no significant difference between the means.\n');
+end
+fprintf('p-value: %.4f\n', p);
+
+%plot
+
+%plot 
+
+figure
+nbin=50;
+histogram(ModuIndex130203.GLobal,nbin,'FaceColor','b')
+xline (meanModuIndexLoc,'Color','b','LineWidth',2,'LineStyle','--')
+hold on
+histogram (ModuIndex130203.Local,nbin,'FaceColor','r')
+xline(meanModuIndexLoc,'color','r','LineWidth',2,'LineStyle','--')
+
+title('histogram of Firingrate for global and Local ','Color','k')
+% legend (['P-value = ' num2str(p)],'Color','white')
+xlabel('Firing rate','Color','k')
+% Get the handle to the legend object
+% legend_handle = legend ('Global',['Mean Global = ' num2str(meanglobamp)],'Local',['Mean Local = 'num2str(meanlocamp)]);
+legend_handle = legend('Global',['Mean Global = ' num2str(meanModuIndexGlob)],'Local',['Mean Local = ' num2str(meanModuIndexLoc)]); 
+
+% Set the text color to white
+set(legend_handle, 'TextColor', 'k')
+text('FontSize', 20, 'Color', 'k', 'Position', [1.5, 50],'String',['p-value = ' num2str(p)]);
+hold off
+% box plot 
+
+myData = transpose( [ModuIndex130203.GLobal ; ModuIndex130203.Local] );
+figure
+hold on 
+boxplot(myData,'PlotStyle','compact','Notch','on','Colors','r','BoxStyle','filled','Labels',{'Global','Local'})
+title('histogram of Firingrate for global and Local ','Color','k')
+xlabel('Firing rate','color','k')
+text('FontSize', 20, 'Color', 'k', 'Position', [1.5, 50],'String',['p-value = ' num2str(p)]);
+
+hold off
+
+%% save figures
+% Get the path to the directory where you want to save the figures
+save_path = 'D:/daniel/Mouse17-130203/compares figures';
+
+% Get a list of all open figures
+fig_list = findobj('Type', 'figure');
+
+% Save each figure to the specified path
+for i = 1:length(fig_list)
+    fig = fig_list(i);
+    saveas(fig, fullfile(save_path, sprintf('figure_%d.png', i)));
+end
+
+
