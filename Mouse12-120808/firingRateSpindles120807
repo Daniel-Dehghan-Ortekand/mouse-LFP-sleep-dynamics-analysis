@@ -1,0 +1,413 @@
+% =========================================================================
+% SCRIPT: Analyze Neural Activity Time-Locked to Sleep Spindles (SWS)
+% SUBJECT: Mouse12-120807
+% =========================================================================
+% DESCRIPTION:
+% This script analyzes LFP and spike train data during Slow-Wave Sleep.
+% It aligns neural activity to detected Sleep Spindles (All, Global, and 
+% Local) to compute population averages (mean LFP, raster, firing rate) 
+% and performs single-cell analysis to calculate a Modulation Index 
+% (peak-to-trough firing rate difference) for each neuron.
+%
+% INPUTS:
+%   - SpikesSWS120807.mat: Spike data during slow-wave sleep.
+%   - sepratedSpindles120807.mat: Spindle events (global/local peaks).
+%   - thal_ch_norm_filtered_120807.mat: Filtered thalamic LFP data.
+%   - Mouse12-120807.spikes.cellinfo.mat: Cell metadata.
+%   - real_peaks_120807[X].mat: Real peaks for the reference channel.
+%
+% OUTPUTS:
+%   - 3 Population Figures (All, Global, Local spindles):
+%       1. Mean raw LFP waveform.
+%       2. Spike raster plot.
+%       3. Smoothed population firing rate.
+%   - FiringrateSpindles.mat: Population firing rates (Global/Local).
+%   - ModuIndex.mat: Single-cell modulation indices (Global/Local).
+%
+% DEPENDENCIES:
+%   - Custom functions: SpikeRaster, getShankID, findThroughs, findMaxPeak
+% =========================================================================
+
+clc 
+% close all
+clear
+changeCurrentFolder('D:\daniel\Mouse12-120807')
+%%
+load SpikesSWS120807.mat
+load sepratedSpindles120807.mat
+load thal_ch_norm_filtered_120807.mat 
+load Mouse12-120807.spikes.cellinfo.mat
+load (['real_peaks_120807' num2str(sepratedSpindles120807.referencChannel) '.mat'])
+%%
+
+fs = 1250;
+winSize = 0.5;
+smoothSize = round(0.05*fs);
+winSample = (-round(winSize*fs):round(winSize*fs));
+
+soSample = real_peaks(2,:);
+
+ref = sepratedSpindles120807.referencChannel;
+ShankID = getShankID(ref);
+% choosing 
+% spikeData = spikes_sws(spikes.shankID == ShankID,:);
+spikeData = spikes_sws;
+
+sws = thal_ch_norm_filtered(sepratedSpindles120807.referencChannel,:);
+
+soSample(soSample < round(winSize*fs) | soSample > length(sws)-round(winSize*fs)) = [];
+
+dataFiltered = zeros(1, length(winSample));
+% dataRaw = zeros(1, length(winSample));
+data_raster = zeros(length(soSample), length(winSample));
+for i=1:length(soSample)
+    dataFiltered = dataFiltered + sws(1, soSample(i)+winSample)/length(soSample);
+%     dataRaw = dataRaw + zscore(cortexLfp(1, soSample(i)+winSample))/length(soSample);
+    data_raster(i,:) = spikeData(soSample(i)+winSample);
+end
+
+firingRate = mean(data_raster,1)*fs;
+firingRate = conv(firingRate, gausswin(smoothSize)/smoothSize, "same");
+
+t = winSample/fs;
+
+figure
+title ('Mouse12-120807 ','Color','white')
+subplot(3, 1, 1)
+plot(t, dataFiltered,'Color','g',LineWidth=2)
+title (' mean raw data around spindles for Mouse12-120807 ','Color','white')
+ylabel('Amp.')
+set(gca,'fontsize',16,'color',[0 0 0])
+set(groot, 'defaultFigureColor', [0 0 0]);
+set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]); 
+subplot(3, 1, 2)
+SpikeRaster(data_raster, fs, [-winSize winSize],0.001);
+title (' raster plot of all cells for Mouse12-120807 ','Color','white')
+ylabel('Trials')
+set(gca,'fontsize',16,'color',[0 0 0])
+set(groot, 'defaultFigureColor', [0 0 0]);
+set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]); 
+subplot(3, 1, 3)
+area(t, firingRate,'FaceColor','yellow','EdgeColor','white')
+title (' Firing rate for Mouse12-120807 ','Color','white')
+ylabel('FR (spike/sec)')
+xlabel('Time (s)')
+set(gca,'fontsize',16,'color',[0 0 0])
+set(groot, 'defaultFigureColor', [0 0 0]);
+set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]); 
+
+%% firing rate for Global 
+fs = 1250;
+winSize = 0.5;
+smoothSize = round(0.05*fs);
+winSample = (-round(winSize*fs):round(winSize*fs));
+soSampleGlob = sepratedSpindles120807.globalPeaks(2,:);
+
+%choosin
+% spikeData = spikes_sws(spikes.shankID == ShankID,:);
+spikeData = spikes_sws;
+sws = thal_ch_norm_filtered(sepratedSpindles120807.referencChannel,:);
+
+soSampleGlob(soSampleGlob < round(winSize*fs) | soSampleGlob > length(sws)-round(winSize*fs)) = [];
+
+dataFiltered = zeros(1, length(winSample));
+% dataRaw = zeros(1, length(winSample));
+data_raster = zeros(length(soSampleGlob), length(winSample));
+
+for i=1:length(soSampleGlob)
+    dataFiltered = dataFiltered + sws(1, soSampleGlob(i)+winSample)/length(soSampleGlob);
+%     dataRaw = dataRaw + zscore(cortexLfp(1, soSample(i)+winSample))/length(soSample);
+    data_raster(i,:) = spikeData(soSampleGlob(i)+winSample);
+end
+
+firingRate = mean(data_raster,1)*fs;
+firingRateGlob = conv(firingRate, gausswin(smoothSize)/smoothSize, "same");
+
+t = winSample/fs;
+
+figure
+title ('Mouse12-120807 ','Color','white')
+subplot(3, 1, 1)
+plot(t, dataFiltered,'Color','g',LineWidth=2)
+title (' mean raw data around Global spindles for Mouse12-120807 ','Color','white')
+ylabel('Amp.')
+set(gca,'fontsize',16,'color',[0 0 0])
+set(groot, 'defaultFigureColor', [0 0 0]);
+set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]); 
+subplot(3, 1, 2)
+SpikeRaster(data_raster, fs, [-winSize winSize],0.001);
+title (' raster plot of all cells for Mouse12-120807 ','Color','white')
+ylabel('Trials')
+set(gca,'fontsize',16,'color',[0 0 0])
+set(groot, 'defaultFigureColor', [0 0 0]);
+set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]); 
+subplot(3, 1, 3)
+area(t, firingRateGlob,'FaceColor','yellow','EdgeColor','white')
+title (' Firing rate for Mouse12-120807 ','Color','white')
+ylabel('FR (spike/sec)')
+xlabel('Time (s)')
+set(gca,'fontsize',16,'color',[0 0 0])
+set(groot, 'defaultFigureColor', [0 0 0]);
+set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]); 
+
+
+%% firing rate for Local
+fs = 1250;
+winSize = 0.5;
+smoothSize = round(0.05*fs);
+winSample = (-round(winSize*fs):round(winSize*fs));
+soSampleLoc = sepratedSpindles120807.LocalPeaks(2,:);
+%choosing
+% spikeData = spikes_sws(spikes.shankID == ShankID,:);
+spikeData = spikes_sws;
+soSampleLoc(soSampleLoc < round(winSize*fs) | soSampleLoc > length(sws)-round(winSize*fs)) = [];
+
+dataFiltered = zeros(1, length(winSample));
+% dataRaw = zeros(1, length(winSample));
+data_raster = zeros(length(soSampleLoc), length(winSample));
+
+for i=1:length(soSampleLoc)
+    dataFiltered = dataFiltered + sws(1, soSampleLoc(i)+winSample)/length(soSampleLoc);
+%     dataRaw = dataRaw + zscore(cortexLfp(1, soSample(i)+winSample))/length(soSample);
+    data_raster(i,:) = spikeData(soSampleLoc(i)+winSample);
+end
+
+firingRate = mean(data_raster,1)*fs;
+firingRateLoc = conv(firingRate, gausswin(smoothSize)/smoothSize, "same");
+
+
+figure
+title ('Mouse12-120807 ','Color','white')
+subplot(3, 1, 1)
+plot(t, dataFiltered,'Color','g',LineWidth=2)
+title (' mean raw data around Local spindles for Mouse12-120807 ','Color','white')
+ylabel('Amp.')
+set(gca,'fontsize',16,'color',[0 0 0])
+set(groot, 'defaultFigureColor', [0 0 0]);
+set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]); 
+subplot(3, 1, 2)
+SpikeRaster(data_raster, fs, [-winSize winSize],0.001);
+title (' raster plot of all cells for Mouse12-120807 ','Color','white')
+ylabel('Trials')
+set(gca,'fontsize',16,'color',[0 0 0])
+set(groot, 'defaultFigureColor', [0 0 0]);
+set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]); 
+subplot(3, 1, 3)
+area(t, firingRateLoc,'FaceColor','yellow','EdgeColor','white')
+title (' Firing rate for Mouse12-120807 ','Color','white')
+ylabel('FR (spike/sec)')
+xlabel('Time (s)')
+set(gca,'fontsize',16,'color',[0 0 0])
+set(groot, 'defaultFigureColor', [0 0 0]);
+set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]); 
+%% indivisuals cells for Global
+fs = 1250;
+winSize = 0.5;
+winSample = (-round(winSize*fs):round(winSize*fs));
+limitWinSample = size((-round(fs/8):round(fs/8)),2);
+soSampleGlob = sepratedSpindles120807.globalPeaks(2,:);
+smoothSize = round(0.01*fs);
+
+ref = sepratedSpindles120807.referencChannel;
+ShankID = getShankID(ref);
+%choosing 
+% spikeData = spikes_sws(spikes.shankID == ShankID,:);
+spikeData = spikes_sws;
+sws = thal_ch_norm_filtered(sepratedSpindles120807.referencChannel,:);
+
+% dataFiltered = zeros(1, length(winSample));
+% for i=1:length(soSampleGlob)
+%     dataFiltered = dataFiltered + sws(1, soSampleGlob(i)+winSample)/length(soSampleGlob);
+% end
+% 
+% [throughs throughsLoc] = findThroughs(dataFiltered);
+% 
+% % Find the maximum throughs.
+% [maxthroughs, maxthroughsInd] = min(throughs);
+% 
+% % Get the sample of the maximum peak.
+% maxthroughsSample = throughsLoc(maxthroughsInd);
+% 
+% % Find the maximum peak in the signal.
+% [maxPeak, maxPeakSample] = findMaxPeak(dataFiltered);
+
+% winSize = abs(maxthroughsSample-maxPeakSample)/fs;
+    
+% winSample = (-round(winSize*fs):round(winSize*fs));
+
+[nRows,nCols] = size(spikeData);
+
+firingRateGlobInd = zeros(nRows,length(winSample));
+ModuIndexGLob = zeros(1,nRows);
+
+for k=1:size(spikeData,1)
+  
+%     soSampleGlob(soSampleGlob < round(winSize*fs) | soSampleGlob > length(sws)-round(winSize*fs)) = [];
+    
+    dataFiltered = zeros(1, length(winSample));
+    % dataRaw = zeros(1, length(winSample));
+    data_raster = zeros(length(soSampleGlob), length(winSample));
+    sws = thal_ch_norm_filtered(sepratedSpindles120807.referencChannel,:);
+    
+    spikedata = spikeData(k,:);
+    for i=1:length(soSampleGlob)
+        dataFiltered = dataFiltered + sws(1, soSampleGlob(i)+winSample)/length(soSampleGlob);
+    %     dataRaw = dataRaw + zscore(cortexLfp(1, soSample(i)+winSample))/length(soSample);
+        data_raster(i,:) = spikedata(soSampleGlob(i)+winSample);
+%         figure
+%         SpikeRaster(data_raster, fs, [-winSize winSize]);
+    end
+    
+    firingRate = mean(data_raster,1)*fs;
+    firingRateGlobInd(k,:) = conv(firingRate, gausswin(smoothSize)/smoothSize, "same");
+    limitFiringRate(1,round((fs/2))-limitWinSample:round((fs/2))+limitWinSample) = firingRateGlobInd(k,round((fs/2))-limitWinSample:round((fs/2))+limitWinSample);
+%     mi(1,ModuIndex)= MI(limitFiringRate);
+    [throughs throughsLoc] = findThroughs(limitFiringRate);
+    [maxPeak, maxPeakSample] = findMaxPeak(limitFiringRate);
+%     Maxpeak = maxPeak;
+    Maxthrough = min(throughs);
+    ModuIndexGLob(1,k) = abs(maxPeak-Maxthrough);
+    MaxpeaksGLob(1,k) = maxPeak;
+    MaxthroughsGlob(1,k) = min(throughs);
+% plot 
+%     t = winSample/fs;
+%     
+%     figure
+%     title ('Mouse12-120807 ','Color','white')
+%     subplot(3, 1, 1)
+%     plot(t, dataFiltered,'Color','g',LineWidth=2)
+%     title (['mean raw data around Global spindles for Mouse12-120807 ans cell number is  = ' num2str(k)],'Color','white')
+%     ylabel('Amp.')
+%     set(gca,'fontsize',16,'color',[0 0 0])
+%     set(groot, 'defaultFigureColor', [0 0 0]);
+%     set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]); 
+%     subplot(3, 1, 2)
+%     SpikeRaster(data_raster, fs, [-winSize winSize], 0.001);
+%     title (['raster plot of all cells for Mouse12-120807 and cell is  = ' num2str(k) ] ,'Color','white')
+%     ylabel('Trials')
+%     set(gca,'fontsize',16,'color',[0 0 0])
+%     set(groot, 'defaultFigureColor', [0 0 0]);
+%     set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]); 
+%     subplot(3, 1, 3)
+%     area(t, firingRateGlobInd(k,:),'FaceColor','yellow','EdgeColor','white')
+%     title ([' Firing rate for Mouse12-120807 and cell number is = ' num2str(k) ],'Color','white')
+%     ylabel('FR (spike/sec)')
+%     xlabel('Time (s)')
+%     set(gca,'fontsize',16,'color',[0 0 0])
+%     set(groot, 'defaultFigureColor', [0 0 0]);
+%     set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]); 
+end
+%% indivisuals cells for Local
+fs = 1250;
+winSize = 0.5;
+winSample = (-round(winSize*fs):round(winSize*fs));
+soSampleGlob = sepratedSpindles120807.LocalPeaks(2,:);
+smoothSize = round(0.05*fs);
+
+ref = sepratedSpindles120807.referencChannel;
+ShankID = getShankID(ref);
+% choosing
+% spikeData = spikes_sws(spikes.shankID == ShankID,:);
+spikeData = spikes_sws;
+sws = thal_ch_norm_filtered(sepratedSpindles120807.referencChannel,:);
+
+% dataFiltered = zeros(1, length(winSample));
+% for i=1:length(soSampleGlob)
+%     dataFiltered = dataFiltered + sws(1, soSampleGlob(i)+winSample)/length(soSampleGlob);
+% end
+% 
+% [throughs throughsLoc] = findThroughs(dataFiltered);
+% 
+% % Find the maximum throughs.
+% [maxthroughs, maxthroughsInd] = min(throughs);
+% 
+% % Get the sample of the maximum peak.
+% maxthroughsSample = throughsLoc(maxthroughsInd);
+% 
+% % Find the maximum peak in the signal.
+% [maxPeak, maxPeakSample] = findMaxPeak(dataFiltered);
+% 
+% winSize = abs(maxthroughsSample-maxPeakSample)/fs;
+%     
+% winSample = (-round(winSize*fs):round(winSize*fs));
+
+[nRows,nCols] = size(spikeData);
+
+firingRateLocInd = zeros(nRows,length(winSample));
+ModuIndexLoc = zeros(1,nRows);
+limitWinSample = size((-round(fs/8):round(fs/8)),2);
+
+
+for k=1:size(spikeData,1)
+  
+%     soSampleGlob(soSampleGlob < round(winSize*fs) | soSampleGlob > length(sws)-round(winSize*fs)) = [];
+    
+    dataFiltered = zeros(1, length(winSample));
+    % dataRaw = zeros(1, length(winSample));
+    data_raster = zeros(length(soSampleGlob), length(winSample));
+    sws = thal_ch_norm_filtered(sepratedSpindles120807.referencChannel,:);
+    
+    spikedata = spikeData(k,:);
+    for i=1:length(soSampleGlob)
+        dataFiltered = dataFiltered + sws(1, soSampleGlob(i)+winSample)/length(soSampleGlob);
+    %     dataRaw = dataRaw + zscore(cortexLfp(1, soSample(i)+winSample))/length(soSample);
+        data_raster(i,:) = spikedata(soSampleGlob(i)+winSample);
+%         figure
+%         SpikeRaster(data_raster, fs, [-winSize winSize]);
+    end
+    
+    firingRate = mean(data_raster,1)*fs;
+    firingRateLocInd(k,:) = conv(firingRate, gausswin(smoothSize)/smoothSize, "same");
+    
+    limitFiringRate(k,round((fs/2))-limitWinSample:round((fs/2))+limitWinSample) = firingRateLocInd(k,round((fs/2))-limitWinSample:round((fs/2))+limitWinSample);
+%       limitFiringRate(k,:) = firingRateLocInd(k,round((fs/2))-limitWinSample:round((fs/2))+limitWinSample);
+%     mi(1,ModuIndex)= MI(limitFiringRate);
+    [throughs throughsLoc] = findThroughs(limitFiringRate(k,:));
+    [maxPeak, maxPeakSample] = findMaxPeak(limitFiringRate(k,:));
+%     Maxpeak = maxPeak;
+    Maxthrough = min(throughs);
+    ModuIndexLoc(1,k) = abs(maxPeak-Maxthrough);
+    MaxpeaksLoc(1,k) = maxPeak;
+    MaxthroughsLoc(1,k) = min(throughs);
+
+        t = winSample/fs;
+% %plot
+%     figure
+%     title ('Mouse12-120807 ','Color','white')
+%     subplot(3, 1, 1)
+%     plot(t, dataFiltered,'Color','g',LineWidth=2)
+%     title (['mean raw data around Local spindles for Mouse12-120807 ans cell number is  = ' num2str(k)],'Color','white')
+%     ylabel('Amp.')
+%     set(gca,'fontsize',16,'color',[0 0 0])
+%     set(groot, 'defaultFigureColor', [0 0 0]);
+%     set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]); 
+%     subplot(3, 1, 2)
+%     SpikeRaster(data_raster, fs, [-winSize winSize], 0.001);
+%     title (['raster plot for Mouse12-120807 and cell is  = ' num2str(k) ] ,'Color','white')
+%     ylabel('Trials')
+%     set(gca,'fontsize',16,'color',[0 0 0])
+%     set(groot, 'defaultFigureColor', [0 0 0]);
+%     set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]); 
+%     subplot(3, 1, 3)
+%     area(t, firingRateLocInd(k,:),'FaceColor','yellow','EdgeColor','white')
+%     title ([' Firing rate for Mouse12-120807 and cell number is = ' num2str(k) ],'Color','white')
+%     ylabel('FR (spike/sec)')
+%     xlabel('Time (s)')
+%     set(gca,'fontsize',16,'color',[0 0 0])
+%     set(groot, 'defaultFigureColor', [0 0 0]);
+%     set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]); 
+end
+
+%% save firing retes 
+
+% firingRate.Big = firingRateBig;
+% firingRate.Short = firingRateshort;
+% save firingRateForReferenceChannel.mat firingRate
+% save firingRateBig.mat firingRateBig
+% save firingRateshort.mat    firingRateshort
+FiringrateSpindles.Global = firingRateGlob;
+FiringrateSpindles.Local = firingRateLoc;
+ModuIndex.GLobal = ModuIndexGLob;
+ModuIndex.Local = ModuIndexLoc;
+save FiringrateSpindles.mat FiringrateSpindles
+save ModuIndex.mat ModuIndex
