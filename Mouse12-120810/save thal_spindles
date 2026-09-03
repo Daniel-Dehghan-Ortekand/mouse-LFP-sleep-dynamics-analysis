@@ -1,0 +1,30 @@
+%% Loading and organizing thalamic spindle data
+% This script loads the detected sleep spindle data separately for each of
+% 63 thalamic channels. The data corresponding to each channel are stored
+% in a cell array, preserving the channel-specific spindle information for
+% subsequent analysis.
+%
+% The complete collection of spindle data from all 63 channels is then
+% saved as a MAT file for further analysis.
+
+clc 
+clear 
+close all 
+%%
+
+% pathsthal = dir('*/thal_spindles_ch*');
+
+
+for k=1:63
+% 
+%     filename = strcat(pathsthal(k).folder, filesep, pathsthal(k).name); % Use filesep instead of just '/'
+%     data = load(filename);
+       data= load(['thal_spindles_120810_ch' num2str(k)]); 
+      thal_spindles{k} = data;
+%     save(['thal_spindles' num2str(k)], 'thal_spindles', '-v7.3');
+%         clear data
+
+end
+save thal_spindles5.mat thal_spindles
+%%
+
