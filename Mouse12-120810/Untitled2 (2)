@@ -1,0 +1,34 @@
+%% Extracting and analyzing neuronal spike activity during selected events
+% This script loads a thalamic EEG channel from the Mouse12-120810
+% recording and defines a set of time intervals for further event-based
+% analysis using the buz_channle function.
+%
+% Spike times are loaded from the corresponding .res file, converted from
+% the original 20 kHz sampling scale to seconds, and mapped to the nearest
+% sample of the 1250 Hz EEG time vector.
+%
+% A binary spike-train vector is generated from the detected spike times,
+% with each spike represented by a value of 1. The spike train is then
+% processed using the same predefined time intervals to obtain the
+% neuronal activity associated with the selected events.
+
+% Data = bz_LoadBinary('E:\NEW_data_TH\Mouse12-120810\Mouse12-120810.eeg','nChannels',90,'frequency',1250);
+% fs=1250;
+% ch74=double(Data(:,74));
+% % 
+fs=1250;
+L=ch74;
+Ch=L;
+T1=[58.8780000000000;376.240000000000;615.860000000000;874.950000000000;1112.70000000000;1236.10000000000;1618.60000000000;1936.20000000000;2191.90000000000;2825.90000000000;2951.80000000000;3199;3440.10000000000;4121.60000000000;4791.20000000000;5241.50000000000;5516.20000000000;9340;9837.60000000000;10088;10572;10758;11115;11182;11484;12071;12324;12623;12836;13002;13438;13473;13516;13901;14429;14473;14642;14781];
+T2=[357.830000000000;575.630000000000;759.020000000000;1100.20000000000;1215.50000000000;1511.20000000000;1917.60000000000;2043.50000000000;2782.20000000000;2951.80000000000;3050;3428.20000000000;3965.30000000000;4731.10000000000;5092.50000000000;5503.10000000000;5784.70000000000;9778.80000000000;9965.30000000000;10545;10659;11067;11177;11281;12027;12283;12457;12806;12990;13343;13461;13502;13605;14366;14454;14618;14752;14906];
+[Ch74] =buz_channle(T1,T2,fs,Ch);
+
+
+time=1/fs:1/fs:(length(L))/fs;
+Spiketime.res=load ('Mouse12-120810.res.10','-ascii');
+spkt=Spiketime.res/20000;% spkt0(EL) is time of spike in 20000 sample rate 
+IND1 = nearestpoint(spkt,time,'nearest');% IND(EL) is the nearest sample of 1250 sample rate to each spike
+mua1=zeros(1,length(time));
+mua1(IND1)=1; % mua(EL) is a time vector that the spike times are 1 and the others are 0
+ts=time(IND1);% ts(EL) is time of spikes in 1250 sample rate
+[Mua10] =buz_channle(T1,T2,fs,mua1');
