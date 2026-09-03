@@ -1,0 +1,40 @@
+
+%% Extracting and visualizing single-unit spike times
+% This script loads the cluster assignments and spike times from the
+% Mouse12-120806 recording and extracts the spike times belonging to
+% cluster 3.
+%
+% The detected spike times are converted from the original 20 kHz
+% recording scale to seconds and mapped to the nearest sample of the
+% 1250 Hz EEG time vector.
+%
+% A binary spike-train vector is then generated, with a value of 1 at
+% each detected spike location and 0 elsewhere. The spike train can be
+% visualized together with the corresponding EEG signal for comparison
+% of neuronal activity and electrophysiological signals.
+
+clu=load ('E:\NEW_data_TH\Mouse12-120806\Mouse12-120806.clu.1','-ascii');
+res=load ('E:\NEW_data_TH\Mouse12-120806\Mouse12-120806.res.1','-ascii');
+L=Ch2;
+% T1=[3465;3610;4057;4571;4841;4976;5545;6135;6424;6579;9885;9944;10415;10999;11179;11938;12678;13070;13558;13973;14190;14796;17512;17781;18611;19382;19576];
+% T2=[3587;3911;4540;4672;4962;5394;6055;6401;6530;6703;9914;10334;10968;11170;11430;12639;12931;13522;13808;14172;14775;14909;17628;18513;19344;19481;19653];
+locs=find(clu==3);
+locs_clu=locs-1;
+sua=zeros(size(res));
+for i=1:length(locs_clu)
+sua(i)=res(locs_clu(i));
+end
+fs=1250;
+time=1/fs:1/fs:(length(L))/fs;
+Spiketime=sua;
+spkt=Spiketime/20000;% spkt0(EL) is time of spike in 20000 sample rate 
+IND1 = nearestpoint(spkt,time,'nearest');% IND(EL) is the nearest sample of 1250 sample rate to each spike
+SUA3=zeros(1,length(time));
+SUA3(IND1)=1; % mua(EL) is a time vector that the spike times are 1 and the others are 0
+plot(t,L,t,SUA2*10^2)
+% [SUA1] =buz_channle(T1,T2,fs,SUA');
+% t=(1:length(L))/fs;
+% vv=ch8;
+% plot(t,vv,'b',t,SUA14*10^2,'k');
+% ,t,SUA14*10^2-400,'r',t,SUA14*10^2-600,'g',t,SUA14*10^2-800,'y',t,SUA14*10^2-1000,'c',t,SUA14*10^2-1200,'m',t,SUA14*10^2-1400,'r');
+% xlabel('tims(S)');
