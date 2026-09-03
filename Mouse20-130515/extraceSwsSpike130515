@@ -1,17 +1,18 @@
-%% Loading raw LFP data and extracting NREM episodes
-% This script loads the session information and raw multichannel EEG
-% recording from the Mouse20-130515 experiment and determines the number
-% of recorded channels and sampling frequency.
+%% Converting spike times to a matrix and extracting NREM spikes
+% This script loads the detected spike times for all recorded cells and
+% determines the maximum number of spikes among the cells. The cell-based
+% spike-time data are then converted into a zero-padded matrix, where each
+% column represents one cell and each row corresponds to a spike time.
+% The resulting matrix is saved for subsequent analysis.
 %
-% The complete EEG recording is loaded from the .eeg file and saved as a
-% MAT file for subsequent processing. The data are then transposed and
-% converted to double precision for further analysis.
-%
-% Predefined NREM/SWS time intervals are used to create a logical index
-% corresponding to all NREM episodes. The EEG samples within these
-% intervals are extracted across all channels and saved separately,
-% together with the corresponding NREM episode time intervals, for
-% subsequent sleep spindle analysis.
+% The predefined NREM/SWS episode time intervals are then loaded and used
+% to create a sample-based logical index corresponding to all NREM periods.
+% Spike times from each cell are mapped to the nearest EEG recording sample
+% and converted into a binary spike-train representation. The spike trains
+% are subsequently restricted to the NREM/SWS periods, producing a matrix
+% containing the spike activity of all cells exclusively during NREM
+% episodes. The resulting NREM spike-train matrix is saved for further
+% analysis.
 
 clc
 clear 
