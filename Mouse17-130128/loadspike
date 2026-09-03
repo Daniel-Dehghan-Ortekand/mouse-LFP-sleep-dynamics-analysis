@@ -1,0 +1,382 @@
+%% Extracting thalamic/hippocampal channels and multi-unit activity during NREM episodes
+% This script loads the 70-channel EEG recording from the Mouse17-130202
+% experiment and extracts selected channels corresponding to different
+% recording groups. For each group, the selected EEG channels are processed
+% together with predefined time intervals using the buz_channle function.
+%
+% Spike times from nine recorded units are loaded from the corresponding
+% .res files, converted from the original 20 kHz sampling rate to seconds,
+% and mapped to the nearest samples of the 1250 Hz EEG recording. Each spike
+% train is converted into a binary multi-unit activity (MUA) time series.
+% The MUA signals are then restricted to the same predefined time intervals
+% as the EEG channels.
+%
+% The processed channel signals and MUA signals are saved separately as MAT
+% files for subsequent analysis. A final plot is used to visualize an EEG
+% channel together with its corresponding MUA activity and an additional
+% hippocampal channel.
+
+% % 17-130202.res.1
+Data = bz_LoadBinary('I:\my data\th-hipp\Mouse17-130202\Mouse17-130202.eeg','nChannels',70,'frequency',1250);
+fs=1250;
+ch64=double(Data(:,64));
+T1=[1237;1661;1978;2150;2384;2534;2902;3896;4135;4345;4725;4814;6752;7146;10682;11402;11908;12244;12766;13049;13310;13788;13947;14212;14575;14936;15351;17761;18078;18369;18898;19227;19471;20116;20824];
+T2=[1655;1766;2135;2223;2453;2714;3333;4065;4291;4434;4795;4893;7079;7404;11333;11837;12002;12751;12990;13172;13703;13918;14212;14278;14836;15303;15478;18046;18175;18787;19221;19308;19776;20632;21127];
+[Ch64] =buz_channle(T1,T2,fs,ch64);
+ch57=double(Data(:,57));
+[Ch57] =buz_channle(T1,T2,fs,ch57);
+ch63=double(Data(:,63));
+[Ch63] =buz_channle(T1,T2,fs,ch63);
+ch58=double(Data(:,58));
+[Ch58] =buz_channle(T1,T2,fs,ch58);
+ch62=double(Data(:,62));
+[Ch62] =buz_channle(T1,T2,fs,ch62);
+ch59=double(Data(:,59));
+[Ch59] =buz_channle(T1,T2,fs,ch59);
+ch61=double(Data(:,61));
+[Ch61] =buz_channle(T1,T2,fs,ch61);
+ch60=double(Data(:,60));
+[Ch60] =buz_channle(T1,T2,fs,ch60);
+L=ch64;
+time=1/fs:1/fs:(length(L))/fs;
+Spiketime.res=load ('Mouse17-130202.res.1','-ascii');
+spkt=Spiketime.res/20000;% spkt0(EL) is time of spike in 20000 sample rate 
+IND1 = nearestpoint(spkt,time,'nearest');% IND(EL) is the nearest sample of 1250 sample rate to each spike
+mua1=zeros(1,length(time));
+mua1(IND1)=1; % mua(EL) is a time vector that the spike times are 1 and the others are 0
+ts=time(IND1);% ts(EL) is time of spikes in 1250 sample rate
+[Mua1] =buz_channle(T1,T2,fs,mua1');
+save Ch64.mat Ch64
+save Ch57.mat Ch57
+save Ch63.mat Ch63
+save Ch58.mat Ch58
+save Ch62.mat Ch62
+save Ch59.mat Ch59
+save Ch61.mat Ch61
+save Ch60.mat Ch60
+save Mua1.mat Mua1
+% plot(time,ch8,'b',time,mua1*10^2.5,'r');
+
+% % 17-130202.res.2
+Data = bz_LoadBinary('I:\my data\th-hipp\Mouse17-130202\Mouse17-130202.eeg','nChannels',70,'frequency',1250);
+fs=1250;
+ch56=double(Data(:,56));
+T1=[1237;1661;1978;2150;2384;2534;2902;3896;4135;4345;4725;4814;6752;7146;10682;11402;11908;12244;12766;13049;13310;13788;13947;14212;14575;14936;15351;17761;18078;18369;18898;19227;19471;20116;20824];
+T2=[1655;1766;2135;2223;2453;2714;3333;4065;4291;4434;4795;4893;7079;7404;11333;11837;12002;12751;12990;13172;13703;13918;14212;14278;14836;15303;15478;18046;18175;18787;19221;19308;19776;20632;21127];
+[Ch56] =buz_channle(T1,T2,fs,ch56);
+ch49=double(Data(:,49));
+[Ch49] =buz_channle(T1,T2,fs,ch49);
+ch55=double(Data(:,55));
+[Ch55] =buz_channle(T1,T2,fs,ch55);
+ch50=double(Data(:,50));
+[Ch50] =buz_channle(T1,T2,fs,ch50);
+ch54=double(Data(:,54));
+[Ch54] =buz_channle(T1,T2,fs,ch54);
+ch51=double(Data(:,51));
+[Ch51] =buz_channle(T1,T2,fs,ch51);
+ch53=double(Data(:,53));
+[Ch53] =buz_channle(T1,T2,fs,ch53);
+ch52=double(Data(:,52));
+[Ch52] =buz_channle(T1,T2,fs,ch52);
+L=ch56;
+time=1/fs:1/fs:(length(L))/fs;
+Spiketime.res=load ('Mouse17-130202.res.2','-ascii');
+spkt=Spiketime.res/20000;% spkt0(EL) is time of spike in 20000 sample rate 
+IND1 = nearestpoint(spkt,time,'nearest');% IND(EL) is the nearest sample of 1250 sample rate to each spike
+mua2=zeros(1,length(time));
+mua2(IND1)=1; % mua(EL) is a time vector that the spike times are 1 and the others are 0
+ts=time(IND1);% ts(EL) is time of spikes in 1250 sample rate
+[Mua2] =buz_channle(T1,T2,fs,mua2');
+save Ch49.mat Ch49
+save Ch50.mat Ch50
+save Ch51.mat Ch51
+save Ch52.mat Ch52
+save Ch53.mat Ch53
+save Ch54.mat Ch54
+save Ch55.mat Ch55
+save Ch56.mat Ch56
+save Mua2.mat Mua2
+
+%%ch  17-130202.res.3
+Data = bz_LoadBinary('I:\my data\th-hipp\Mouse17-130202\Mouse17-130202.eeg','nChannels',70,'frequency',1250);
+fs=1250;
+T1=[1237;1661;1978;2150;2384;2534;2902;3896;4135;4345;4725;4814;6752;7146;10682;11402;11908;12244;12766;13049;13310;13788;13947;14212;14575;14936;15351;17761;18078;18369;18898;19227;19471;20116;20824];
+T2=[1655;1766;2135;2223;2453;2714;3333;4065;4291;4434;4795;4893;7079;7404;11333;11837;12002;12751;12990;13172;13703;13918;14212;14278;14836;15303;15478;18046;18175;18787;19221;19308;19776;20632;21127];
+ch17=double(Data(:,17));
+[Ch17] =buz_channle(T1,T2,fs,ch17);
+ch26=double(Data(:,26));
+[Ch26] =buz_channle(T1,T2,fs,ch26);
+ch18=double(Data(:,18));
+[Ch18] =buz_channle(T1,T2,fs,ch18);
+ch25=double(Data(:,25));
+[Ch25] =buz_channle(T1,T2,fs,ch25);
+ch19=double(Data(:,19));
+[Ch19] =buz_channle(T1,T2,fs,ch19);
+ch23=double(Data(:,23));
+[Ch23] =buz_channle(T1,T2,fs,ch23);
+ch21=double(Data(:,21));
+[Ch21] =buz_channle(T1,T2,fs,ch21);
+ch22=double(Data(:,22));
+[Ch22] =buz_channle(T1,T2,fs,ch22);
+L=ch17;
+time=1/fs:1/fs:(length(L))/fs;
+Spiketime.res=load ('Mouse17-130202.res.3','-ascii');
+spkt=Spiketime.res/20000;% spkt0(EL) is time of spike in 20000 sample rate 
+IND1 = nearestpoint(spkt,time,'nearest');% IND(EL) is the nearest sample of 1250 sample rate to each spike
+mua3=zeros(1,length(time));
+mua3(IND1)=1; % mua(EL) is a time vector that the spike times are 1 and the others are 0
+ts=time(IND1);% ts(EL) is time of spikes in 1250 sample rate
+[Mua3] =buz_channle(T1,T2,fs,mua3');
+save Ch17.mat Ch17
+save Ch26.mat Ch26
+save Ch18.mat Ch18
+save Ch25.mat Ch25
+save Ch19.mat Ch19
+save Ch23.mat Ch23
+save Ch21.mat Ch21
+save Ch22.mat Ch22
+save Mua3.mat Mua3
+
+%%ch 17-130202.res.4
+Data = bz_LoadBinary('I:\my data\th-hipp\Mouse17-130202\Mouse17-130202.eeg','nChannels',70,'frequency',1250);
+fs=1250;
+T1=[1237;1661;1978;2150;2384;2534;2902;3896;4135;4345;4725;4814;6752;7146;10682;11402;11908;12244;12766;13049;13310;13788;13947;14212;14575;14936;15351;17761;18078;18369;18898;19227;19471;20116;20824];
+T2=[1655;1766;2135;2223;2453;2714;3333;4065;4291;4434;4795;4893;7079;7404;11333;11837;12002;12751;12990;13172;13703;13918;14212;14278;14836;15303;15478;18046;18175;18787;19221;19308;19776;20632;21127];
+ch27=double(Data(:,27));
+[Ch27] =buz_channle(T1,T2,fs,ch27);
+ch20=double(Data(:,20));
+[Ch20] =buz_channle(T1,T2,fs,ch20);
+ch29=double(Data(:,29));
+[Ch29] =buz_channle(T1,T2,fs,ch29);
+ch24=double(Data(:,24));
+[Ch24] =buz_channle(T1,T2,fs,ch24);
+ch30=double(Data(:,30));
+[Ch30] =buz_channle(T1,T2,fs,ch30);
+ch28=double(Data(:,28));
+[Ch28] =buz_channle(T1,T2,fs,ch28);
+ch31=double(Data(:,31));
+[Ch31] =buz_channle(T1,T2,fs,ch31);
+ch32=double(Data(:,32));
+[Ch32] =buz_channle(T1,T2,fs,ch32);
+L=ch27;
+time=1/fs:1/fs:(length(L))/fs;
+Spiketime.res=load ('Mouse17-130202.res.4','-ascii');
+spkt=Spiketime.res/20000;% spkt0(EL) is time of spike in 20000 sample rate 
+IND1 = nearestpoint(spkt,time,'nearest');% IND(EL) is the nearest sample of 1250 sample rate to each spike
+mua4=zeros(1,length(time));
+mua4(IND1)=1; % mua(EL) is a time vector that the spike times are 1 and the others are 0
+ts=time(IND1);% ts(EL) is time of spikes in 1250 sample rate
+[Mua4] =buz_channle(T1,T2,fs,mua4');
+save Ch27.mat Ch27
+save Ch20.mat Ch20
+save Ch29.mat Ch29
+save Ch24.mat Ch24
+save Ch30.mat Ch30
+save Ch28.mat Ch28
+save Ch31.mat Ch31
+save Ch32.mat Ch32
+save Mua4.mat Mua4
+
+
+
+%%ch 17-130202.res.5
+Data = bz_LoadBinary('I:\my data\th-hipp\Mouse17-130202\Mouse17-130202.eeg','nChannels',70,'frequency',1250);
+fs=1250;
+T1=[1237;1661;1978;2150;2384;2534;2902;3896;4135;4345;4725;4814;6752;7146;10682;11402;11908;12244;12766;13049;13310;13788;13947;14212;14575;14936;15351;17761;18078;18369;18898;19227;19471;20116;20824];
+T2=[1655;1766;2135;2223;2453;2714;3333;4065;4291;4434;4795;4893;7079;7404;11333;11837;12002;12751;12990;13172;13703;13918;14212;14278;14836;15303;15478;18046;18175;18787;19221;19308;19776;20632;21127];
+ch14=double(Data(:,14));
+[Ch14] =buz_channle(T1,T2,fs,ch14);
+ch5=double(Data(:,5));
+[Ch5] =buz_channle(T1,T2,fs,ch5);
+ch10=double(Data(:,10));
+[Ch10] =buz_channle(T1,T2,fs,ch10);
+ch3=double(Data(:,3));
+[Ch3] =buz_channle(T1,T2,fs,ch3);
+ch6=double(Data(:,6));
+[Ch6] =buz_channle(T1,T2,fs,ch6);
+ch4=double(Data(:,4));
+[Ch4] =buz_channle(T1,T2,fs,ch4);
+ch2=double(Data(:,2));
+[Ch2] =buz_channle(T1,T2,fs,ch2);
+ch1=double(Data(:,1));
+[Ch1] =buz_channle(T1,T2,fs,ch1);
+L=ch14;
+time=1/fs:1/fs:(length(L))/fs;
+Spiketime.res=load ('Mouse17-130202.res.5','-ascii');
+spkt=Spiketime.res/20000;% spkt0(EL) is time of spike in 20000 sample rate 
+IND1 = nearestpoint(spkt,time,'nearest');% IND(EL) is the nearest sample of 1250 sample rate to each spike
+mua5=zeros(1,length(time));
+mua5(IND1)=1; % mua(EL) is a time vector that the spike times are 1 and the others are 0
+ts=time(IND1);% ts(EL) is time of spikes in 1250 sample rate
+[Mua5] =buz_channle(T1,T2,fs,mua5');
+save Ch14.mat Ch14
+save Ch5.mat Ch5
+save Ch10.mat Ch10
+save Ch3.mat Ch3
+save Ch6.mat Ch6
+save Ch4.mat Ch4
+save Ch2.mat Ch2
+save Ch1.mat Ch1
+save Mua5.mat Mua5
+
+%%ch17-130202.res.6
+Data = bz_LoadBinary('I:\my data\th-hipp\Mouse17-130202\Mouse17-130202.eeg','nChannels',70,'frequency',1250);
+fs=1250;
+T1=[1237;1661;1978;2150;2384;2534;2902;3896;4135;4345;4725;4814;6752;7146;10682;11402;11908;12244;12766;13049;13310;13788;13947;14212;14575;14936;15351;17761;18078;18369;18898;19227;19471;20116;20824];
+T2=[1655;1766;2135;2223;2453;2714;3333;4065;4291;4434;4795;4893;7079;7404;11333;11837;12002;12751;12990;13172;13703;13918;14212;14278;14836;15303;15478;18046;18175;18787;19221;19308;19776;20632;21127];
+ch8=double(Data(:,8));
+[Ch8] =buz_channle(T1,T2,fs,ch8);
+ch15=double(Data(:,15));
+[Ch15] =buz_channle(T1,T2,fs,ch15);
+ch7=double(Data(:,7));
+[Ch7] =buz_channle(T1,T2,fs,ch7);
+ch16=double(Data(:,16));
+[Ch16] =buz_channle(T1,T2,fs,ch16);
+ch9=double(Data(:,9));
+[Ch9] =buz_channle(T1,T2,fs,ch9);
+ch13=double(Data(:,13));
+[Ch13] =buz_channle(T1,T2,fs,ch13);
+ch12=double(Data(:,12));
+[Ch12] =buz_channle(T1,T2,fs,ch12);
+ch11=double(Data(:,11));
+[Ch11] =buz_channle(T1,T2,fs,ch11);
+L=ch8;
+time=1/fs:1/fs:(length(L))/fs;
+Spiketime.res=load ('Mouse17-130202.res.6','-ascii');
+spkt=Spiketime.res/20000;% spkt0(EL) is time of spike in 20000 sample rate 
+IND1 = nearestpoint(spkt,time,'nearest');% IND(EL) is the nearest sample of 1250 sample rate to each spike
+mua6=zeros(1,length(time));
+mua6(IND1)=1; % mua(EL) is a time vector that the spike times are 1 and the others are 0
+ts=time(IND1);% ts(EL) is time of spikes in 1250 sample rate
+[Mua6] =buz_channle(T1,T2,fs,mua6');
+save Ch8.mat Ch8
+save Ch15.mat Ch15
+save Ch7.mat Ch7
+save Ch16.mat Ch16
+save Ch9.mat Ch9
+save Ch13.mat Ch13
+save Ch12.mat Ch12
+save Ch11.mat Ch11
+save Mua6.mat Mua6
+
+
+%%ch17-130202.res.7
+Data = bz_LoadBinary('I:\my data\th-hipp\Mouse17-130202\Mouse17-130202.eeg','nChannels',70,'frequency',1250);
+fs=1250;
+T1=[1237;1661;1978;2150;2384;2534;2902;3896;4135;4345;4725;4814;6752;7146;10682;11402;11908;12244;12766;13049;13310;13788;13947;14212;14575;14936;15351;17761;18078;18369;18898;19227;19471;20116;20824];
+T2=[1655;1766;2135;2223;2453;2714;3333;4065;4291;4434;4795;4893;7079;7404;11333;11837;12002;12751;12990;13172;13703;13918;14212;14278;14836;15303;15478;18046;18175;18787;19221;19308;19776;20632;21127];
+ch47=double(Data(:,47));
+[Ch47] =buz_channle(T1,T2,fs,ch47);
+ch42=double(Data(:,42));
+[Ch42] =buz_channle(T1,T2,fs,ch42);
+ch48=double(Data(:,48));
+[Ch48] =buz_channle(T1,T2,fs,ch48);
+ch41=double(Data(:,41));
+[Ch41] =buz_channle(T1,T2,fs,ch41);
+ch45=double(Data(:,45));
+[Ch45] =buz_channle(T1,T2,fs,ch45);
+ch44=double(Data(:,44));
+[Ch44] =buz_channle(T1,T2,fs,ch44);
+ch46=double(Data(:,46));
+[Ch46] =buz_channle(T1,T2,fs,ch46);
+ch43=double(Data(:,43));
+[Ch43] =buz_channle(T1,T2,fs,ch43);
+L=ch47;
+time=1/fs:1/fs:(length(L))/fs;
+Spiketime.res=load ('Mouse17-130202.res.7','-ascii');
+spkt=Spiketime.res/20000;% spkt0(EL) is time of spike in 20000 sample rate 
+IND1 = nearestpoint(spkt,time,'nearest');% IND(EL) is the nearest sample of 1250 sample rate to each spike
+mua7=zeros(1,length(time));
+mua7(IND1)=1; % mua(EL) is a time vector that the spike times are 1 and the others are 0
+ts=time(IND1);% ts(EL) is time of spikes in 1250 sample rate
+[Mua7] =buz_channle(T1,T2,fs,mua7');
+save Ch47.mat Ch47
+save Ch42.mat Ch42
+save Ch48.mat Ch48
+save Ch41.mat Ch41
+save Ch45.mat Ch45
+save Ch44.mat Ch44
+save Ch46.mat Ch46
+save Ch43.mat Ch43
+save Mua7.mat Mua7
+
+%%ch17-130202.res.8
+Data = bz_LoadBinary('I:\my data\th-hipp\Mouse17-130202\Mouse17-130202.eeg','nChannels',70,'frequency',1250);
+fs=1250;
+T1=[1237;1661;1978;2150;2384;2534;2902;3896;4135;4345;4725;4814;6752;7146;10682;11402;11908;12244;12766;13049;13310;13788;13947;14212;14575;14936;15351;17761;18078;18369;18898;19227;19471;20116;20824];
+T2=[1655;1766;2135;2223;2453;2714;3333;4065;4291;4434;4795;4893;7079;7404;11333;11837;12002;12751;12990;13172;13703;13918;14212;14278;14836;15303;15478;18046;18175;18787;19221;19308;19776;20632;21127];
+ch39=double(Data(:,39));
+[Ch39] =buz_channle(T1,T2,fs,ch39);
+ch34=double(Data(:,34));
+[Ch34] =buz_channle(T1,T2,fs,ch34);
+ch40=double(Data(:,40));
+[Ch40] =buz_channle(T1,T2,fs,ch40);
+ch33=double(Data(:,33));
+[Ch33] =buz_channle(T1,T2,fs,ch33);
+ch37=double(Data(:,37));
+[Ch37] =buz_channle(T1,T2,fs,ch37);
+ch36=double(Data(:,36));
+[Ch36] =buz_channle(T1,T2,fs,ch36);
+ch38=double(Data(:,38));
+[Ch38] =buz_channle(T1,T2,fs,ch38);
+ch35=double(Data(:,35));
+[Ch35] =buz_channle(T1,T2,fs,ch35);
+L=ch39;
+time=1/fs:1/fs:(length(L))/fs;
+Spiketime.res=load ('Mouse17-130202.res.8','-ascii');
+spkt=Spiketime.res/20000;% spkt0(EL) is time of spike in 20000 sample rate 
+IND1 = nearestpoint(spkt,time,'nearest');% IND(EL) is the nearest sample of 1250 sample rate to each spike
+mua8=zeros(1,length(time));
+mua8(IND1)=1; % mua(EL) is a time vector that the spike times are 1 and the others are 0
+ts=time(IND1);% ts(EL) is time of spikes in 1250 sample rate
+[Mua8] =buz_channle(T1,T2,fs,mua8');
+save Ch39.mat Ch39
+save Ch34.mat Ch34
+save Ch40.mat Ch40
+save Ch33.mat Ch33
+save Ch37.mat Ch37
+save Ch36.mat Ch36
+save Ch38.mat Ch38
+save Ch35.mat Ch35
+save Mua8.mat Mua8
+
+
+%%ch17-130202.res.9
+Data = bz_LoadBinary('I:\my data\th-hipp\Mouse17-130202\Mouse17-130202.eeg','nChannels',70,'frequency',1250);
+fs=1250;
+T1=[1237;1661;1978;2150;2384;2534;2902;3896;4135;4345;4725;4814;6752;7146;10682;11402;11908;12244;12766;13049;13310;13788;13947;14212;14575;14936;15351;17761;18078;18369;18898;19227;19471;20116;20824];
+T2=[1655;1766;2135;2223;2453;2714;3333;4065;4291;4434;4795;4893;7079;7404;11333;11837;12002;12751;12990;13172;13703;13918;14212;14278;14836;15303;15478;18046;18175;18787;19221;19308;19776;20632;21127];
+ch65=double(Data(:,65));
+[Ch65] =buz_channle(T1,T2,fs,ch65);
+ch66=double(Data(:,66));
+[Ch66] =buz_channle(T1,T2,fs,ch66);
+ch67=double(Data(:,67));
+[Ch67] =buz_channle(T1,T2,fs,ch67);
+ch68=double(Data(:,68));
+[Ch68] =buz_channle(T1,T2,fs,ch68);
+ch69=double(Data(:,69));
+[Ch69] =buz_channle(T1,T2,fs,ch69);
+ch70=double(Data(:,70));
+[Ch70] =buz_channle(T1,T2,fs,ch70);
+L=ch65;
+time=1/fs:1/fs:(length(L))/fs;
+Spiketime.res=load ('Mouse17-130202.res.9','-ascii');
+spkt=Spiketime.res/20000;% spkt0(EL) is time of spike in 20000 sample rate 
+IND1 = nearestpoint(spkt,time,'nearest');% IND(EL) is the nearest sample of 1250 sample rate to each spike
+mua9=zeros(1,length(time));
+mua9(IND1)=1; % mua(EL) is a time vector that the spike times are 1 and the others are 0
+ts=time(IND1);% ts(EL) is time of spikes in 1250 sample rate
+[Mua9] =buz_channle(T1,T2,fs,mua9');
+save Ch65.mat Ch65
+save Ch66.mat Ch66
+save Ch67.mat Ch67
+save Ch68.mat Ch68
+save Ch69.mat Ch69
+save Ch70.mat Ch70
+save Mua9.mat Mua9
+
+
+% % plot
+figure;
+plot(time,ch1','b',time,mua1*10^2.5,'r',time65,ch65','m',time65,mua65*10^2.5,'k');
+legend('ch1(cortex)=b' , 'mua1(cortex)=r' , 'ch65(hipp)=m' , 'mua65(hipp)=k'); xlabel('time'); 
