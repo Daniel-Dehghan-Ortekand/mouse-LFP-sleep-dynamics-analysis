@@ -1,0 +1,116 @@
+%% Converting spike times to a matrix and extracting NREM spikes
+% This script loads the detected spike times for all recorded cells from
+% the Mouse12-120809 experiment and determines the maximum number of spikes
+% among the cells. The cell-based spike-time data are then converted into a
+% zero-padded matrix, where each column represents one cell and each row
+% corresponds to a spike time. The resulting matrix is saved for subsequent
+% analysis.
+%
+% The predefined NREM/SWS episode time intervals are used to create a
+% logical index corresponding to all NREM periods. Spike times from each
+% cell are mapped to the nearest EEG recording sample and converted into a
+% binary spike-train representation.
+%
+% The spike trains are subsequently restricted to the NREM/SWS periods,
+% producing a matrix containing the spike activity of all recorded cells
+% exclusively during NREM episodes. The resulting NREM spike-train matrix
+% is saved for subsequent neuronal activity analysis.
+
+clear 
+close all
+tic
+%% 
+load    Mouse12-120809.spikes.cellinfo.mat
+CellNum = size(spikes.times ,2);
+%choose the longest length for Cell array 
+MaxLen = 0;
+for j=1:CellNum
+    if length(spikes.times{1,j})>MaxLen
+        MaxLen = length((spikes.times{1,j}));
+    end
+end  
+
+% exclude spikes times from cell array to a matrix
+SpikesTimesAllCells = zeros(MaxLen,CellNum);
+for i=1:CellNum
+ SpikesTimesAllCells(1:length(spikes.times{:,i}),i) = cell2mat(spikes.times(:,i));
+end 
+
+%save data 
+save    SpikesTimesAllCells120809.mat SpikesTimesAllCells
+
+%%
+load    SpikesTimesAllCells120809.mat
+%SWS times Episode 
+SwsTime = [89.718	559.69
+583	885.94
+937.48	1121.7
+1149.2	1271.1
+1299.7	1488
+1533.6	1632.1
+1684	1732.5
+1797.6	1907.2
+1934	2004
+2039.5	2153.8
+2196	2242.8
+2282.4	2347.8
+2395.7	2413.3
+2478	2659.4
+2695.1	2760.7
+2798	2856.3
+2892	3163.3
+4473	4682.5
+4752.2	5224.8
+5376.9	5708.5
+5744.2	5867.9
+5915	6065.9
+6149	6426.5
+6643.6	7278
+11192	11696
+11696	12008
+12045	12219
+12408	12740
+12779	13082
+13119	13322
+13361	13606
+13690	13878
+14037	14103
+14140	14371
+15127	15512
+15562	15702
+15774	15986
+16059	16264
+16307	16632
+16672	16806
+16971	17339
+17407	17681
+17878	18495
+
+];
+
+fs = 1250;
+%% main code 
+ChCell = size(SpikesTimesAllCells ,2);
+SwsEpisodeNum = size(SwsTime,1);
+
+mf = matfile("thal_allchanel_Mouse12_120809.mat");
+all_size = size(mf, "thal_allchanel_Mouse12_120809_new", 1);
+all_time = (0:all_size-1)/fs;
+
+SWS_ind = false(1, all_size);
+for i=1:SwsEpisodeNum
+    start_sample = round(SwsTime(i,1)*fs);
+    stop_sample = round(SwsTime(i,2)*fs);
+    SWS_ind(start_sample:stop_sample) = 1;
+end
+
+spikes_sws = false(ChCell, sum(SWS_ind));
+for i=1:ChCell
+    ind = nearestpoint(SpikesTimesAllCells(:,i), all_time);
+    s = false(1, all_size);
+    s(ind) = 1;
+
+    spikes_sws(i, :) = s(SWS_ind);
+
+end
+save SpikesSWS120809.mat spikes_sws
