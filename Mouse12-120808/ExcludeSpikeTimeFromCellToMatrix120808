@@ -1,0 +1,32 @@
+%% Converting cell-based spike times into a matrix
+% This script loads the detected spike times for all recorded cells from
+% the Mouse12-120808 experiment and determines the number of recorded
+% cells and the maximum number of spikes among them.
+%
+% The cell-based spike-time data are then converted into a zero-padded
+% matrix, where each column represents one cell and each row corresponds
+% to a spike time. This provides a common matrix representation of the
+% spike times across all recorded cells.
+%
+% The resulting matrix containing the spike times of all cells is saved as
+% a MAT file for subsequent neuronal activity analysis.
+
+clear
+close all
+load Mouse12-120808.spikes.cellinfo.mat]]></w:t></w:r></w:p><w:p><w:pPr><w:sectPr/></w:pPr></w:p><w:p><w:pPr><w:pStyle w:val="code"/></w:pPr><w:r><w:t><![CDATA[
+CellNum = size(spikes.times ,2);
+%choose the longest length for Cell array 
+MaxLen = 0;
+for j=1:CellNum
+    if length(spikes.times{1,j})>MaxLen
+        MaxLen = length((spikes.times{1,j}));
+    end
+end  ]]></w:t></w:r></w:p><w:p><w:pPr><w:sectPr/></w:pPr></w:p><w:p><w:pPr><w:pStyle w:val="code"/></w:pPr><w:r><w:t><![CDATA[
+% exclude spikes times from cell array to a matrix
+SpikesTimesAllCells = zeros(MaxLen,CellNum);
+for i=1:CellNum
+ SpikesTimesAllCells(1:length(spikes.times{:,i}),i) = cell2mat(spikes.times(:,i));
+end 
+
+%save data 
+save    SpikesTimesAllCells.mat SpikesTimesAllCells
