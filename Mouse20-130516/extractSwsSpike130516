@@ -1,0 +1,71 @@
+%% Converting spike times to a matrix and extracting NREM spikes
+% This script loads the detected spike times for all recorded cells and
+% determines the maximum number of spikes among the cells. The cell-based
+% spike-time data are then converted into a zero-padded matrix, where each
+% column represents one cell and each row corresponds to a spike time.
+% The resulting spike-time matrix is saved for subsequent analysis.
+%
+% The predefined NREM/SWS episode time intervals are then used to create a
+% sample-based logical index over the complete EEG recording. Spike times
+% from each cell are mapped to the nearest EEG sample and converted into
+% binary spike trains. The spike trains are restricted to the NREM/SWS
+% periods, producing a matrix containing neuronal activity exclusively
+% during NREM episodes. The resulting NREM spike-train matrix is saved for
+% subsequent sleep spindle analysis.
+
+clc
+clear 
+close all
+tic
+%% 
+load    Mouse20-130516.spikes.cellinfo.mat
+CellNum = size(spikes.times ,2);
+%choose the longest length for Cell array 
+MaxLen = 0;
+for j=1:CellNum
+    if length(spikes.times{1,j})>MaxLen
+        MaxLen = length((spikes.times{1,j}));
+    end
+end  
+
+% exclude spikes times from cell array to a matrix
+SpikesTimesAllCells = zeros(MaxLen,CellNum);
+for i=1:CellNum
+ SpikesTimesAllCells(1:length(spikes.times{:,i}),i) = cell2mat(spikes.times(:,i));
+end 
+
+%save data 
+save    SpikesTimesAllCells130516.mat SpikesTimesAllCells
+
+%%
+load    SpikesTimesAllCells130516.mat
+load Sws_Time_130516.mat
+
+fs = 1250;
+%% main code 
+ChCell = size(SpikesTimesAllCells ,2);
+SwsEpisodeNum = size(SwsTime,1);
+
+mf = matfile("thal_allchanel_Mouse20-130516.mat");
+all_size = size(mf, "thal_allchanel_Mouse20_130516_new", 1);
+all_time = (0:all_size-1)/fs;
+
+SWS_ind = false(1, all_size);
+for i=1:SwsEpisodeNum
+    start_sample = round(SwsTime(i,1)*fs);
+    stop_sample = round(SwsTime(i,2)*fs);
+    SWS_ind(start_sample:stop_sample) = 1;
+end
+
+spikes_sws = false(ChCell, sum(SWS_ind));
+for i=1:ChCell
+    ind = nearestpoint(SpikesTimesAllCells(:,i), all_time);
+    s = false(1, all_size);
+    s(ind) = 1;
+
+    spikes_sws(i, :) = s(SWS_ind);
+
+end
+save SpikesSWS130516.mat spikes_sws
+
+toc
