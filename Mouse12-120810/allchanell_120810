@@ -1,0 +1,84 @@
+%% Loading raw LFP data and extracting NREM episodes
+% This script loads the complete 90-channel raw EEG recording from the
+% Mouse12-120810 experiment at a sampling frequency of 1250 Hz. The EEG
+% data are transposed and converted to double precision for subsequent
+% processing, and the complete recording is saved as a MAT file.
+%
+% Predefined NREM/SWS time intervals are used to create a logical index
+% corresponding to all NREM episodes. The EEG samples within these
+% intervals are extracted across all channels to produce an NREM-only EEG
+% dataset.
+%
+% The resulting NREM EEG data are saved as a MAT file for subsequent sleep
+% spindle and slow-oscillation analyses.
+
+clear 
+clc
+close all
+changeCurrentFolder('D:\daniel\Mouse12-120810')
+%% read the .EEG file and save all channel
+
+thal_allchanel_Mouse12_120810_new = bz_LoadBinary('Mouse12-120810.eeg','nChannels',90,'frequency',1250);
+fs=1250;
+save thal_allchanel_Mouse12_120810 -v7.3
+OriginalData = thal_allchanel_Mouse12_120810_new;
+%% creat NREM EPISOD
+
+% load thal_allchanel_Mouse12_120806_new_90.mat
+ch_number=90;
+OriginalData=transpose(OriginalData);
+OriginalData=double(OriginalData);
+
+SwsTime = [58.878	357.83
+376.24	575.63
+615.86	759.02
+874.95	1100.2
+1112.7	1215.5
+1236.1	1511.2
+1618.6	1917.6
+1936.2	2043.5
+2191.9	2782.2
+2825.9	2951.8
+2951.8	3050
+3199	3428.2
+3440.1	3965.3
+4121.6	4731.1
+4791.2	5092.5
+5241.5	5503.1
+5516.2	5784.7
+9340	9778.8
+9837.6	9965.3
+10088	10545
+10572	10659
+10758	11067
+11115	11177
+11182	11281
+11484	12027
+12071	12283
+12324	12457
+12623	12806
+12836	12990
+13002	13343
+13438	13461
+13473	13502
+13516	13605
+13901	14366
+14429	14454
+14473	14618
+14642	14752
+14781	14906];
+
+SWSpacket_num = size(SwsTime,1);
+
+
+SWS_ind = false(1, length(OriginalData));
+for i=1:SWSpacket_num
+%     start_sample = round(sws(i,1)*fs);
+%     stop_sample = round(sws(i,2)*fs);
+    start_time = round(SwsTime(i,1)*fs);
+    stop_time = round(SwsTime(i,2)*fs);
+    SWS_ind(start_time:stop_time) = 1;
+end
+SWS_episode = OriginalData(:,SWS_ind);
+
+save SWS_episode.mat  SWS_episode -v7.3
