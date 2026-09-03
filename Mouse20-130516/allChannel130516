@@ -1,0 +1,70 @@
+%% Loading raw EEG data and extracting NREM episodes
+% This script loads the session information and raw EEG recording from the
+% mouse experiment, determines the number of recorded channels, and loads
+% the complete multichannel EEG dataset at a sampling frequency of 1250 Hz.
+% The raw EEG data are transposed and converted to double precision for
+% subsequent processing.
+%
+% Predefined NREM/SWS time intervals are used to create a logical index
+% corresponding to all NREM episodes. The EEG data within these intervals
+% are extracted across all channels, and the resulting NREM EEG dataset
+% and corresponding NREM episode time intervals are saved separately for
+% subsequent sleep spindle analysis.
+
+clear 
+clc
+close all
+changeCurrentFolder('D:\daniel\Mouse20-130516')
+%% read the .EEG file and save all channel
+
+load Mouse20-130516.sessionInfo.mat
+nChannels = sessionInfo.nChannels;
+fs=1250;
+
+thal_allchanel_Mouse20_130516_new = bz_LoadBinary('Mouse20-130516.eeg','nChannels',nChannels,'frequency',fs);
+
+save thal_allchanel_Mouse20-130516 -v7.3
+OriginalData = thal_allchanel_Mouse20_130516_new;
+%% creat NREM EPISOD
+
+ch_number= nChannels;
+OriginalData=transpose(OriginalData);
+OriginalData=double(OriginalData);
+
+SwsTime = [140	484
+720	1488
+1611	2098
+2165	2438
+2678	3231
+3361	3684
+3788	4108
+5080	5643
+5688	5862
+5967	6419
+6709	7213
+10913	10977
+11039	11578
+11635	11994
+12119	12555
+12758	13309
+13447	14082
+14260	14708
+14765	15322
+15523	16163
+16263	16495];
+
+SWSpacket_num = size(SwsTime,1);
+
+
+SWS_ind = false(1, length(OriginalData));
+for i=1:SWSpacket_num
+%     start_sample = round(sws(i,1)*fs);
+%     stop_sample = round(sws(i,2)*fs);
+    start_time = round(SwsTime(i,1)*fs);
+    stop_time = round(SwsTime(i,2)*fs);
+    SWS_ind(start_time:stop_time) = 1;
+end
+SWS_episode = OriginalData(:,SWS_ind);
+
+save SWS_episode_130516.mat  SWS_episode -v7.3
+save Sws_Time_130516.mat    SwsTime
