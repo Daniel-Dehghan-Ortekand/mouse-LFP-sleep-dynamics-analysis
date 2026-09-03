@@ -1,0 +1,77 @@
+%% Loading raw LFP data and extracting NREM episodes
+% This script loads the session information and raw multichannel EEG
+% recording from the Mouse17-130128 experiment and determines the number
+% of recorded channels and sampling frequency.
+%
+% The complete EEG recording is loaded from the .eeg file, transposed, and
+% converted to double precision for subsequent processing. The resulting
+% multichannel EEG data are saved as a MAT file.
+%
+% Predefined NREM/SWS time intervals are used to create a logical index
+% corresponding to all NREM episodes. The EEG samples within these
+% intervals are extracted across all channels and saved separately,
+% together with the corresponding NREM/SWS episode time intervals, for
+% subsequent sleep spindle and slow-oscillation analysis.
+
+clear 
+clc
+close all
+changeCurrentFolder('D:\daniel\Mouse17-130128')
+%% read the .EEG file and save all channel
+
+load Mouse17-130128.sessionInfo.mat
+nChannels = sessionInfo.nChannels;
+fs=1250;
+
+thal_allchanel_Mouse17_130128_new = bz_LoadBinary('Mouse17-130128.eeg','nChannels',nChannels,'frequency',fs);
+
+save thal_allchanel_Mouse17-130128 -v7.3
+OriginalData = thal_allchanel_Mouse17_130128_new;
+%% creat NREM EPISOD
+
+ch_number= nChannels;
+OriginalData=transpose(OriginalData);
+OriginalData=double(OriginalData);
+
+SwsTime = [618	1456
+1581	2385
+2428	2555
+2848	3126
+3173	3372
+3438	3546
+3767	3778.3
+3778.3	4294
+4321	4548
+4865	4941
+4993	5114
+9556	10629
+10814	11193
+11333	11651
+11823	12480
+12681	12952
+13038	13302
+15260	15283
+15283	15637
+15647	15803
+15976	16327
+16337	16507
+16589	16745
+16985	17301
+17337	17497
+17727	17881];
+
+SWSpacket_num = size(SwsTime,1);
+
+
+SWS_ind = false(1, length(OriginalData));
+for i=1:SWSpacket_num
+%     start_sample = round(sws(i,1)*fs);
+%     stop_sample = round(sws(i,2)*fs);
+    start_time = round(SwsTime(i,1)*fs);
+    stop_time = round(SwsTime(i,2)*fs);
+    SWS_ind(start_time:stop_time) = 1;
+end
+SWS_episode = OriginalData(:,SWS_ind);
+
+save SWS_episode_130128.mat  SWS_episode -v7.3
+save Sws_Time_130128.mat    SwsTime
