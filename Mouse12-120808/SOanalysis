@@ -1,31 +1,28 @@
 % =========================================================================
-% SCRIPT: Analyze Neural Activity Time-Locked to Sleep Spindles (SWS)
-% SUBJECT: Mouse12-120807
+% SCRIPT: Spatiotemporal Analysis of Slow Oscillations (SOs)
+% SUBJECT: Mouse12-120806
 % =========================================================================
 % DESCRIPTION:
-% This script analyzes LFP and spike train data during Slow-Wave Sleep.
-% It aligns neural activity to detected Sleep Spindles (All, Global, and 
-% Local) to compute population averages (mean LFP, raster, firing rate) 
-% and performs single-cell analysis to calculate a Modulation Index 
-% (peak-to-trough firing rate difference) for each neuron.
+% Analyzes the propagation and amplitude characteristics of Slow 
+% Oscillations across multi-channel SWS recordings. Identifies a reference 
+% channel, computes inter-channel delays, and evaluates secondary-to-
+% primary peak amplitude ratios. Compares these metrics across frequency 
+% bands (0.5-4 Hz vs 0.5-10 Hz) and spatial scales (population mean vs 
+% single reference channel).
 %
 % INPUTS:
-%   - SpikesSWS120807.mat: Spike data during slow-wave sleep.
-%   - sepratedSpindles120807.mat: Spindle events (global/local peaks).
-%   - thal_ch_norm_filtered_120807.mat: Filtered thalamic LFP data.
-%   - Mouse12-120807.spikes.cellinfo.mat: Cell metadata.
-%   - real_peaks_120807[X].mat: Real peaks for the reference channel.
+%   - SWS_episode_for120808.mat: Raw SWS LFP data.
+%   - thal_ch_norm_filtered_so120806.mat: Z-scored, 0.5-4 Hz filtered data.
 %
 % OUTPUTS:
-%   - 3 Population Figures (All, Global, Local spindles):
-%       1. Mean raw LFP waveform.
-%       2. Spike raster plot.
-%       3. Smoothed population firing rate.
-%   - FiringrateSpindles.mat: Population firing rates (Global/Local).
-%   - ModuIndex.mat: Single-cell modulation indices (Global/Local).
+%   - Figures: Scatter plots (Delay vs Ratio) and Histograms (Delay, 
+%     Ratio, Amplitude, STD, CV).
+%   - SOreferenceChannelDelayAndRatioUpFreq.mat: Delay/Ratio for ref ch (0.5-10Hz).
+%   - SOreferenceChannelDelayAndRatio.mat: Delay/Ratio for ref ch (0.5-4Hz).
 %
 % DEPENDENCIES:
-%   - Custom functions: SpikeRaster, getShankID, findThroughs, findMaxPeak
+%   - Custom function: SOMolle (for SO detection)
+%   - MATLAB Signal Processing Toolbox: eegfilt, findpeaks
 % =========================================================================
 
 clc
