@@ -1,0 +1,32 @@
+%% Loading and organizing real spindle peak data
+% This script loads the detected real sleep spindle peak data separately
+% for each of 64 thalamic channels from the Mouse12-120809 recording.
+%
+% The real spindle peak data from each channel are stored in a cell array,
+% preserving the channel-specific peak information for subsequent spindle
+% analysis.
+%
+% The complete collection of real spindle peak data across all 64 channels
+% is then saved as a MAT file for further processing.
+
+clc 
+clear 
+close all 
+%%
+
+% pathsthal = dir('*/thal_spindles_ch*');
+
+
+for k=1:64
+% 
+%     filename = strcat(pathsthal(k).folder, filesep, pathsthal(k).name); % Use filesep instead of just '/'
+%     data = load(filename);
+       data= load(['real_peaks_120809_' num2str(k)]); 
+      real_peaks{k} = data;
+%     save(['thal_spindles' num2str(k)], 'thal_spindles', '-v7.3');
+%         clear data
+
+end
+save real_peaks4.mat real_peaks
+%%
+
