@@ -1,0 +1,620 @@
+%% NREM spindle-triggered neuronal firing rate and modulation analysis
+% This script separates NREM neuronal spike trains into thalamic and
+% hippocampal populations based on their shank IDs. Thalamic cells with
+% NREM firing rates below 0.5 Hz are excluded from subsequent analyses,
+% and the location-specific spike data are saved.
+%
+% For each remaining thalamic cell, neuronal activity is aligned
+% independently to the peaks of global and local sleep spindles associated
+% with the corresponding thalamic reference channel. Spike rasters are
+% generated within a +/-0.5 s window around each spindle peak, and
+% spindle-triggered firing-rate profiles are calculated and smoothed using
+% a Gaussian kernel.
+%
+% The spindle-triggered firing rates are analyzed separately for global and
+% local spindles for each individual cell. A modulation index is calculated
+% from the absolute difference between the maximum firing-rate peak and the
+% minimum trough within the central +/-1/8 s spindle-related time window.
+%
+% The resulting individual-cell firing-rate profiles, spike rasters,
+% processed NREM spike trains, and modulation indices for global and local
+% spindles are saved in separate MAT files for subsequent comparison of
+% neuronal responses.
+
+tic
+clc 
+close all
+clear
+changeCurrentFolder('D:\daniel\Mouse12-120810')
+%%
+load SpikesSWS120810.mat
+load sepratedSpindles120810.mat
+load thal_ch_norm_filtered_120810.mat 
+load Mouse12-120810.spikes.cellinfo.mat
+load (['real_peaks_120810_' num2str(sepratedSpindles120810.referencChannel(1,1)) '.mat'])
+%%
+tempspike = [];
+for i = 1:size(spikes_sws,1)
+    if spikes.shankID(i)>8
+        tempspike = [tempspike i];
+    end
+end
+spikes_swsHip = spikes_sws(tempspike,:);
+spikes_sws(tempspike,:) = [];
+spikes_swsThal = spikes_sws;
+shankNum = spikes.shankID (1:length(spikes.shankID)-length(tempspike));
+shankNumHip = spikes.shankID (length(spikes.shankID)-length(tempspike)+1:length(spikes.shankID));
+SpikesBaseOnLocation.Hipocamp = spikes_swsHip;
+SpikesBaseOnLocation.Thalamus = spikes_swsThal;
+SpikesBaseOnLocation.ThalamousshankIDs = shankNum;
+SpikesBaseOnLocation.HipocampshankIDs = shankNumHip;
+save SpikesBaseOnLocation120810.mat SpikesBaseOnLocation
+
+%%
+fs=1250;
+temp = [];
+for i=1:size(spikes_sws,1)
+    sp = find(spikes_sws(i,:)==1);
+    FR = length(sp)/(length(spikes_sws(i,:))/fs);
+    if FR<0.5
+        temp = [temp i];
+    end
+end
+spikes_sws(temp,:)=[];
+shankNum(temp) = [];
+%%
+% fs = 1250;
+% winSize = 0.5;
+% smoothSize = round(0.01*fs);
+% winSample = (-round(winSize*fs):round(winSize*fs));
+% 
+% soSample = real_peaks(2,:);
+% 
+% ref = sepratedSpindles120810.referencChannel(1,1);
+% ShankID = getShankID(ref);
+% % choosing 
+% % spikeData = spikes_sws(spikes.shankID == ShankID,:);
+% spikeData = spikes_sws;
+% 
+% sws = thal_ch_norm_filtered(sepratedSpindles120810.referencChannel,:);
+% 
+% soSample(soSample < round(winSize*fs) | soSample > length(sws)-round(winSize*fs)) = [];
+% 
+% dataFiltered = zeros(1, length(winSample));
+% % dataRaw = zeros(1, length(winSample));َ
+% data_raster = zeros(length(soSample), length(winSample));
+% for i=1:length(soSample)
+%     dataFiltered = dataFiltered + sws(1, soSample(i)+winSample)/length(soSample);
+% %     dataRaw = dataRaw + zscore(cortexLfp(1, soSample(i)+winSample))/length(soSample);
+%     data_raster(i,:) = spikeData(soSample(i)+winSample);
+% end
+% 
+% firingRate = mean(data_raster,1)*fs;
+% firingRate = conv(firingRate, gausswin(smoothSize)/smoothSize, "same");
+% 
+% t = winSample/fs;
+% upLim = ceil(max(firingRate));
+% figure
+% title ('Mouse12-120810 ','Color','k')
+% subplot(3, 1, 1)
+% plot(t, dataFiltered,'Color','k',LineWidth=2)
+% title (' mean raw data around spindles for Mouse12-120810 ','Color','k')
+% ylabel('Amp.','Color','k')
+% subplot(3, 1, 2)
+% SpikeRaster(data_raster, fs, [-winSize winSize],0.0001);
+% title (' raster plot of all cells for Mouse12-120810 ','Color','k')
+% ylabel('Trials','Color','k')
+% subplot(3, 1, 3)
+% area(t, firingRate,'FaceColor','k','EdgeColor','k')
+% title (' Firing rate for Mouse12-120810 ','Color','k')
+% ylabel('FR (spike/sec)','Color','k')
+% xlabel('Time (s)','Color','k')
+% ylim([0 upLim])
+
+
+%% indivisuals cells for Global
+load SpikesBaseOnLocation120810.mat 
+
+fs = 1250;
+winSize = 0.5;
+winSample = (-round(winSize*fs):round(winSize*fs));
+limitWinSample = size((-round(fs/8):round(fs/8)),2);
+% soSampleGlob = sepratedSpindles120810.globalPeaks(2,:);
+smoothSize = round(0.01*fs);
+spikeData = spikes_sws;
+
+[nRows,~] = size(spikeData);
+
+firingRateGlobInd = zeros(nRows,length(winSample));
+ModuIndexGLob = zeros(1,nRows);
+
+data_raster_GLob = cell(1,size(spikeData,1));
+refrences = sepratedSpindles120810.referencChannelForEachChannel(1,:);
+
+for k=1:size(spikeData,1)
+shank = SpikesBaseOnLocation.ThalamousshankIDs(1,k);
+ref = getRefChannel(shank, refrences);
+%choosing 
+% spikeData = spikes_sws(spikes.shankID == ShankID,:);
+RefInf = sepratedSpindles120810.globalSPindles{2, ref};
+soSampleGlob = RefInf(2,:);
+
+
+
+  
+%     soSampleGlob(soSampleGlob < round(winSize*fs) | soSampleGlob > length(sws)-round(winSize*fs)) = [];
+    
+    dataFiltered = zeros(1, length(winSample));
+    % dataRaw = zeros(1, length(winSample));
+    data_raster = zeros(length(soSampleGlob), length(winSample));
+    sws = thal_ch_norm_filtered(ref,:);
+    
+    spikedata = spikeData(k,:);
+    for i=1:length(soSampleGlob)
+        dataFiltered = dataFiltered + sws(1, soSampleGlob(i)+winSample)/length(soSampleGlob);
+    %     dataRaw = dataRaw + zscore(cortexLfp(1, soSample(i)+winSample))/length(soSample);
+        data_raster(i,:) = spikedata(soSampleGlob(i)+winSample);
+%         figure
+%         SpikeRaster(data_raster, fs, [-winSize winSize]);
+    end
+    data_raster_GLob{k} = (data_raster);
+    firingRate = mean(data_raster,1)*fs;
+    firingRateGlobInd(k,:) = conv(firingRate, gausswin(smoothSize)/smoothSize, "same");
+    meanfiringRateGlobInd = mean (firingRateGlobInd(k,:));
+
+end
+ModuIndexGLob = zeros(1,size(firingRateGlobInd,1));
+for k=1:size(firingRateGlobInd,1)
+limitFiringRate(k,round((fs/2))-limitWinSample:round((fs/2))+limitWinSample) = firingRateGlobInd(k,round((fs/2))-limitWinSample:round((fs/2))+limitWinSample);
+%     mi(1,ModuIndex)= MI(limitFiringRate);
+    [throughs, throughsLoc] = findThroughs(limitFiringRate(k,:));
+    [maxPeak, maxPeakSample] = findMaxPeak(limitFiringRate(k,:));
+%     Maxpeak = maxPeak;
+    Maxthrough = min(throughs);
+    if ~isempty(maxPeak) || ~isempty(Maxthrough) 
+        ModuIndexGLob(1,k) = abs(maxPeak-Maxthrough);
+        MaxpeaksGLob(1,k) = maxPeak;
+        MaxthroughsGlob(1,k) = min(throughs);
+    else 
+        ModuIndexGLob(1,k) = nan;
+        MaxpeaksGLob(1,k) = nan;
+        MaxthroughsGlob(1,k) = nan;
+    end
+    
+end
+% for j=1:size(ModuIndexGLob,2)
+%     if isnan(ModuIndexGLob(1,j))
+%         ModuIndexGLob(1,j) = 0;
+%     end
+% end 
+    MeanModuIndexGLob =nanmean(ModuIndexGLob) ;
+
+%% plot
+% 
+% 
+%     t = winSample/fs;
+%  for k=1:size(firingRateGlobInd,1)
+% 
+% %     if ModuIndexGLob(1,k) > MeanModuIndexGLob
+% 
+%     spikedata = spikeData(k,:);
+% 
+%     for i=1:length(soSampleGlob)
+% %         dataFiltered = dataFiltered + sws(1, soSampleGlob(i)+winSample)/length(soSampleGlob);
+%         data_raster(i,:) = spikedata(soSampleGlob(i)+winSample);
+%     end
+%     
+%     upLimGlobInd = ceil(max(firingRateGlobInd(k,:)));
+%     figure
+%     title ('Mouse12-120810 ','Color','k')
+%     subplot(3, 1, 1)
+%     plot(t, dataFiltered,'Color','b',LineWidth=2)
+%     set(gca,'fontsize',16,'color',[1 1 1])
+% set(groot, 'defaultFigureColor', [1 1 1]);
+% set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+% 
+%     title (['mean raw data around Global spindles for Mouse12-120807 ans cell number is  = ' num2str(k)],'Color','k')
+%     ylabel('Amp.','Color','k')
+%     
+%     subplot(3, 1, 2)
+%     SpikeRaster(data_raster, fs, [-winSize winSize], 0.001);
+%     set(gca,'fontsize',16,'color',[1 1 1])
+% set(groot, 'defaultFigureColor', [1 1 1]);
+% set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+% 
+%     title (['raster plot of all cells for Mouse12-120807 and cell is  = ' num2str(k) ] ,'Color','k')
+%     ylabel('Trials','Color','k')
+%     subplot(3, 1, 3)
+%     area(t, firingRateGlobInd(k,:),'FaceColor','b')
+%     set(gca,'fontsize',16,'color',[1 1 1])
+% set(groot, 'defaultFigureColor', [1 1 1]);
+% set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+% 
+%     title ([' Firing rate for Mouse12-120807 and cell number is = ' num2str(k) ],'Color','k')
+%     ylabel('FR (spike/sec)','Color','k')
+%     xlabel('Time (s)','Color','k')
+%     ylim([0 upLimGlobInd])
+% 
+% %     end
+% end
+
+%% firing rate for Global (all cells)
+% fs = 1250;
+% winSize = 0.5;
+% smoothSize = round(0.01*fs);
+% winSample = (-round(winSize*fs):round(winSize*fs));
+% soSampleGlob = sepratedSpindles120807.globalPeaks(2,:);
+% 
+% %choosin
+% % spikeData = spikes_sws(spikes.shankID == ShankID,:);
+% spikeData = spikes_sws;
+% sws = thal_ch_norm_filtered(sepratedSpindles120807.referencChannel,:);
+% soSampleGlob(soSampleGlob < round(winSize*fs) | soSampleGlob > length(sws)-round(winSize*fs)) = [];
+% 
+% dataFilteredGlobal = zeros(1, length(winSample));
+% % dataRaw = zeros(1, length(winSample));
+% data_raster = zeros(length(soSampleGlob), length(winSample));
+% 
+% for i=1:length(soSampleGlob)
+%     dataFilteredGlobal = dataFilteredGlobal + sws(1, soSampleGlob(i)+winSample)/length(soSampleGlob);
+% %     dataRaw = dataRaw + zscore(cortexLfp(1, soSample(i)+winSample))/length(soSample);
+%     data_raster(i,:) = spikeData(soSampleGlob(i)+winSample);
+% end
+% 
+% firingRate = mean(data_raster,1)*fs;
+% firingRateGlob = conv(firingRate, gausswin(smoothSize)/smoothSize, "same");
+% 
+% t = winSample/fs;
+% upLimGlob = ceil(max(firingRateGlob));
+% 
+% figure
+% title ('Mouse12-120807120807 ','Color','k')
+% subplot(3, 1, 1)
+% plot(t,dataFilteredGlobal,'Color','b',LineWidth=2)
+% title (' mean raw data around Global spindles for Mouse12-120807 ','Color','k')
+% ylabel('Amp.','Color','k')
+% subplot(3, 1, 2)
+% SpikeRaster(data_raster, fs, [-winSize winSize],0.001);
+% title (' raster plot of all cells for Mouse12-120807 ','Color','k')
+% ylabel('Trials','Color','k')
+% subplot(3, 1, 3)
+% area(t, firingRateGlob,'FaceColor','b')
+% title (' Firing rate for Mouse12-120806 ','Color','k')
+% ylabel('FR (spike/sec)','Color','k')
+% xlabel('Time (s)','Color','k')
+% ylim([0 upLimGlob])
+% 
+% 
+% 
+% 
+
+%% indivisuals cells for Local
+load SpikesBaseOnLocation120810.mat 
+
+fs = 1250;
+winSize = 0.5;
+winSample = (-round(winSize*fs):round(winSize*fs));
+% soSampleGlob = sepratedSpindles120807.LocalPeaks(2,:);
+smoothSize = round(0.01*fs);
+spikeData = spikes_sws;
+
+% ref = sepratedSpindles120810.referencChannel;
+% ShankID = getShankID(ref);
+% choosing
+% spikeData = spikes_sws(spikes.shankID == ShankID,:);
+% spikeData = spikes_sws;
+% sws = thal_ch_norm_filtered(sepratedSpindles120806.referencChannel,:);
+
+[nRows,nCols] = size(spikeData);
+
+firingRateLocInd = zeros(nRows,length(winSample));
+ModuIndexLoc = zeros(1,nRows);
+limitWinSample = size((-round(fs/8):round(fs/8)),2);
+data_raster_Loc = cell(1,size(spikeData,1));
+
+for k=1:size(spikeData,1)
+
+    shank = SpikesBaseOnLocation.ThalamousshankIDs(1,k);
+    ref = getRefChannel(shank, refrences);
+
+    RefInf = sepratedSpindles120810.localSPindles  {2,ref};
+    soSampleGlob = RefInf(2,:);
+
+  soSampleGlob(soSampleGlob < round(winSize*fs) | soSampleGlob > length(sws)-round(winSize*fs)) = [];
+
+%     soSampleGlob(soSampleGlob < round(winSize*fs) | soSampleGlob > length(sws)-round(winSize*fs)) = [];
+    
+    dataFiltered = zeros(1, length(winSample));
+    % dataRaw = zeros(1, length(winSample));
+    data_raster = zeros(length(soSampleGlob), length(winSample));
+    sws = thal_ch_norm_filtered(ref,:);    
+    spikedata = spikeData(k,:);
+    for i=1:length(soSampleGlob)
+        dataFiltered = dataFiltered + sws(1, soSampleGlob(i)+winSample)/length(soSampleGlob);
+    %     dataRaw = dataRaw + zscore(cortexLfp(1, soSample(i)+winSample))/length(soSample);
+        data_raster(i,:) = spikedata(soSampleGlob(i)+winSample);
+%         figure
+%         SpikeRaster(data_raster, fs, [-winSize winSize]);
+    end
+    data_raster_Loc{k} = data_raster;
+    firingRate = mean(data_raster,1)*fs;
+    firingRateLocInd(k,:) = conv(firingRate, gausswin(smoothSize)/smoothSize, "same");
+    
+end
+
+ModuIndexLoc = zeros(1,size(firingRateLocInd,1));
+
+for k=1:size(firingRateLocInd,1)
+    limitFiringRate(k,round((fs/2))-limitWinSample:round((fs/2))+limitWinSample) = firingRateLocInd(k,round((fs/2))-limitWinSample:round((fs/2))+limitWinSample);
+%       limitFiringRate(k,:) = firingRateLocInd(k,round((fs/2))-limitWinSample:round((fs/2))+limitWinSample);
+%     mi(1,ModuIndex)= MI(limitFiringRate);
+    [throughs, throughsLoc] = findThroughs(limitFiringRate(k,:));
+    [maxPeak, maxPeakSample] = findMaxPeak(limitFiringRate(k,:));
+%     Maxpeak = maxPeak;
+    Maxthrough = min(throughs);
+   if ~isempty(maxPeak) || ~isempty(Maxthrough) 
+        ModuIndexLoc(1,k) = abs(maxPeak-Maxthrough);
+        MaxpeaksLoc(1,k) = maxPeak;
+        MaxthroughsLoc(1,k) = min(throughs);
+    else 
+        ModuIndexLoc(1,k) = nan;
+        MaxpeaksLoc(1,k) = nan;
+        MaxthroughsLoc(1,k) = nan;
+    end
+
+end 
+% for j=1:size(ModuIndexLoc,2)
+%     if isnan(ModuIndexLoc(1,j))
+%         ModuIndexLoc(1,j) = 0;
+%     end
+% end 
+
+    MeanModuIndexLoc = nanmean(ModuIndexLoc) ;
+% plot 
+
+
+%% plot
+%     t = winSample/fs;
+%  for k=1:size(firingRateLocInd,1)
+% 
+% %     if ModuIndexLoc(1,k) > MeanModuIndexLoc
+% 
+%     spikedata = spikeData(k,:);
+% 
+%     for i=1:length(soSampleGlob)
+% %         dataFiltered = dataFiltered + sws(1, soSampleGlob(i)+winSample)/length(soSampleGlob);
+%         data_raster(i,:) = spikedata(soSampleGlob(i)+winSample);
+%     end
+%     
+%     upLimLocInd = ceil(max(firingRateLocInd(k,:)));
+%     figure
+%     title ('Mouse12-120807 ','Color','k')
+%     subplot(3, 1, 1)
+%     plot(t, dataFiltered,'Color','r',LineWidth=2)
+%     set(gca,'fontsize',16,'color',[1 1 1])
+%     set(groot, 'defaultFigureColor', [1 1 1]);
+%     set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+% 
+%     title (['mean raw data around Global spindles for Mouse12-120806 ans cell number is  = ' num2str(k)],'Color','k')
+%     ylabel('Amp.','Color','k')
+%     
+%     subplot(3, 1, 2)
+%     SpikeRaster(data_raster, fs, [-winSize winSize], 0.001);
+%     set(gca,'fontsize',16,'color',[1 1 1])
+%     set(groot, 'defaultFigureColor', [1 1 1]);
+%     set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+% 
+%     title (['raster plot of all cells for Mouse12-120806 and cell is  = ' num2str(k) ] ,'Color','k')
+%     ylabel('Trials','Color','k')
+%     subplot(3, 1, 3)
+%     area(t, firingRateLocInd(k,:),'FaceColor','r')
+%     set(gca,'fontsize',16,'color',[1 1 1])
+%     set(groot, 'defaultFigureColor', [1 1 1]);
+%     set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+% 
+%     title ([' Firing rate for Mouse12-120806 and cell number is = ' num2str(k) ],'Color','k')
+%     ylabel('FR (spike/sec)','Color','k')
+%     xlabel('Time (s)','Color','k')
+%     ylim([0 upLimLocInd])
+% 
+% %     end
+% end
+
+%% firing rate for Local (all cells)
+% fs = 1250;
+% winSize = 0.5;
+% smoothSize = round(0.01*fs);
+% winSample = (-round(winSize*fs):round(winSize*fs));
+% soSampleLoc = sepratedSpindles120806.LocalPeaks(2,:);
+% %choosing
+% % spikeData = spikes_sws(spikes.shankID == ShankID,:);
+% spikeData = spikes_sws;
+% soSampleLoc(soSampleLoc < round(winSize*fs) | soSampleLoc > length(sws)-round(winSize*fs)) = [];
+% dataFilteredLobal = zeros(1, length(winSample));
+% % dataRaw = zeros(1, length(winSample));
+% data_raster = zeros(length(soSampleLoc), length(winSample));
+% 
+% for i=1:length(soSampleLoc)
+%     dataFilteredLobal = dataFilteredLobal + sws(1, soSampleLoc(i)+winSample)/length(soSampleLoc);
+% %     dataRaw = dataRaw + zscore(cortexLfp(1, soSample(i)+winSample))/length(soSample);
+%     data_raster(i,:) = spikeData(soSampleLoc(i)+winSample);
+% end
+% 
+% firingRate = mean(data_raster,1)*fs;
+% firingRateLoc = conv(firingRate, gausswin(smoothSize)/smoothSize, "same");
+% 
+% upLimLoc = ceil(max(firingRateLoc));
+% 
+% figure
+% title ('Mouse12-120806 ','Color','k')
+% subplot(3, 1, 1)
+% plot(t, dataFilteredLobal,'Color','r',LineWidth=2)
+% title (' mean raw data around Local spindles for Mouse12-120806 ','Color','k')
+% ylabel('Amp.','Color','k')
+% subplot(3, 1, 2)
+% SpikeRaster(data_raster, fs, [-winSize winSize],0.001);
+% title (' raster plot of all cells for Mouse12-120806 ','Color','k')
+% ylabel('Trials','Color','k')
+% subplot(3, 1, 3)
+% area(t, firingRateLoc,'FaceColor','r')
+% title (' Firing rate for Mouse12-120806 ','Color','k')
+% ylabel('FR (spike/sec)','Color','k')
+% xlabel('Time (s)','Color','k')
+% ylim([0 upLimLoc])
+
+
+
+%% save firing retes
+
+% FRspindles120806.Global = firingRateGlob;
+FRspindles120810.GlobalIndi = firingRateGlobInd;
+% FRspindles120807.Local = firingRateLoc;
+FRspindles120810.LocalIndi = firingRateLocInd;
+FRspindles120810.NeatedSpikes = spikes_sws;
+FRspindles120810.fs = fs;
+FRspindles120810.SpikeRasterGlobal=data_raster_GLob ;
+% FRspindles120806.MeanAllEventsGlobal = dataFilteredGlobal;
+% FRspindles120806.MeanAllEventsLocal = dataFilteredLobal;
+FRspindles120810.SpikeRasterLocal=data_raster_Loc ;
+ModuIndex120810.GLobal = ModuIndexGLob;
+ModuIndex120810.Local = ModuIndexLoc;
+
+save FiringrateSpindles120810.mat FRspindles120810
+save ModuIndex120810.mat ModuIndex120810
+%% save figures
+% 
+% clearFigures(['D:/daniel/Mouse12-120807/' ...
+%     'firing rate spindles']);
+% 
+% 
+% % Get handles of all open figures
+% figures = findobj('Type','figure');
+%                 
+% % Maximize each figure
+% for i = 1:length(figures)
+%     set(figures(i),'WindowState','maximized');
+% end
+% 
+% % Get the path to the directory where you want to save the figures
+% save_path = 'D:/daniel/Mouse12-120807/firing rate spindles';
+% 
+% % Get a list of all open figures
+% fig_list = findobj('Type', 'figure');
+% 
+% % Save each figure to the specified path
+% for i = 1:length(fig_list)
+%     fig = fig_list(i);
+%     saveas(fig, fullfile(save_path, sprintf('figure_%d.png', i)));
+%         saveas(fig, fullfile(save_path, sprintf('figure_%d.fig', i)));
+% 
+% end
+%  toc
+% 
+%%
+% % fs = 1250;
+% % winSize = 0.5;
+% % winSample = (-round(winSize*fs):round(winSize*fs));
+% % soSampleGlob = sepratedSpindles120806.LocalPeaks(2,:);
+% % smoothSize = round(0.01*fs);
+% 
+% % ref = sepratedSpindles120806.referencChannel;
+% % ShankID = getShankID(ref);
+% % choosing
+% % spikeData = spikes_sws(spikes.shankID == ShankID,:);
+% spikeData = SpikesBaseOnLocation.Thalamus;
+% sws = thal_ch_norm_filtered(sepratedSpindles120806.referencChannel,:);
+% 
+% [nRows,nCols] = size(spikeData);
+%     t = winSample/fs;
+% 
+% 
+% for m=1:size (ModuIndex120806.GLobal  ,2)
+%     if ModuIndex120806.GLobal(m) > mean(ModuIndex120806.GLobal)...
+%             && ModuIndex120806.Local(m) > mean(ModuIndex120806.Local) 
+%         
+%     figure 
+%         upLimLocInd = ceil(max( FRspindles120806.GlobalIndi(m,:)));
+% 
+% subplot(3, 2, 1)
+% plot(t,FRspindles120806.MeanAllEventsGlobal ,'Color','b',LineWidth=2)
+% % text (['MI = ' num2str(ModuIndex120806.GLobal(m))])
+% legend (['MI = ' num2str(ModuIndex120806.GLobal(m))])
+% 
+% title (' mean raw data around Global spindles for Mouse12-120806 ','Color','k')
+% ylabel('Amp.','Color','k')
+% subplot(3, 2, 3)
+% data_raster_mat_Glob = cell2mat(FRspindles120806.SpikeRasterGlobal(m));
+% SpikeRaster(data_raster_mat_Glob, fs, [-winSize winSize],0.001);
+% title (' raster plot of all cells for Mouse12-120806 ','Color','k')
+% ylabel('Trials','Color','k')
+% subplot(3, 2, 5)
+% area(t, FRspindles120806.GlobalIndi(m,:),'FaceColor','b')
+% title (' Firing rate for Mouse12-120806 ','Color','k')
+% ylabel('FR (spike/sec)','Color','k')
+% xlabel('Time (s)','Color','k')
+% % ylim([0 upLimGlob])
+% 
+%     upLimLocInd = ceil(max(FRspindles120806.LocalIndi(m,:)));
+%     subplot(3, 2, 2)
+%     plot(t, FRspindles120806.MeanAllEventsLocal ,'Color','r',LineWidth=2)
+% %         text (['MI = ' num2str(ModuIndex120806.Local(m))])
+% legend (['MI = ' num2str(ModuIndex120806.Local(m))])
+% 
+% 
+%     title (['mean raw data around Global spindles for Mouse12-120806 ans cell number is  = ' num2str(m)],'Color','k')
+%     ylabel('Amp.','Color','k')
+%     
+%     subplot(3, 2, 4)
+%         data_raster_mat_Loc = cell2mat(FRspindles120806.SpikeRasterLocal(m));
+% 
+%     SpikeRaster(data_raster_mat_Loc, fs, [-winSize winSize], 0.001);
+%     title (['raster plot of all cells for Mouse12-120806 and cell is  = ' num2str(m) ] ,'Color','k')
+%     ylabel('Trials','Color','k')
+%     subplot(3, 2, 6)
+%     area(t, firingRateLocInd(m,:),'FaceColor','r')
+%     title ([' Firing rate for Mouse12-120806 and cell number is = ' num2str(m) ],'Color','k')
+%     ylabel('FR (spike/sec)','Color','k')
+%     xlabel('Time (s)','Color','k')
+%     ylim([0 upLimLocInd])
+% 
+% 
+%     end
+% end 
+% % save figures
+% 
+% clearFigures(['D:\daniel\Mouse12-120806' ...
+%     '\firing rate spindles\subplot']);
+% 
+% 
+% % Get handles of all open figures
+% figures = findobj('Type','figure');
+%                 
+% % Maximize each figure
+% for i = 1:length(figures)
+%     set(figures(i),'WindowState','maximized');
+% end
+% 
+% % Get the path to the directory where you want to save the figures
+% save_path = (['D:\daniel\Mouse12-120806' ...
+%     '\firing rate spindles\subplot']);
+% 
+% % Get a list of all open figures
+% fig_list = findobj('Type', 'figure');
+% 
+% % Save each figure to the specified path
+% for i = 1:length(fig_list)
+%     fig = fig_list(i);
+%     saveas(fig, fullfile(save_path, sprintf('figure_%d.png', i)));
+%         saveas(fig, fullfile(save_path, sprintf('figure_%d.fig', i)));
+% 
+% end
+%  toc
+%   
+%     
+   
+
+
+    
+    
+
+
