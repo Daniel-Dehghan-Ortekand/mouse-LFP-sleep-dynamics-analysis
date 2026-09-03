@@ -1,0 +1,677 @@
+%% Slow oscillation detection, delay, and peak analysis
+% This script preprocesses NREM thalamic EEG data from Mouse17-130202 by
+% excluding bad channels, z-score normalizing the signals, and filtering
+% them between 0.5 and 4 Hz to isolate slow oscillations.
+%
+% Slow oscillation events and their peaks are detected independently for
+% each channel, and the channel containing the largest number of detected
+% slow oscillations is selected as the reference channel. The timing of
+% slow-oscillation peaks across channels is then compared with the
+% reference channel to calculate inter-channel peak delays.
+%
+% The mean signal around reference slow-oscillation events is calculated
+% across channels and used to characterize the reference and subsequent
+% peaks. The delay between the peaks and the amplitude ratio of the
+% subsequent peak to the reference peak are calculated for each event.
+%
+% The script further calculates the mean, standard deviation, and
+% coefficient of variation of the largest peak amplitudes across channels.
+% Histograms and scatter plots are generated to visualize peak amplitudes,
+% delays, amplitude ratios, and channel variability.
+%
+% The peak delay and amplitude-ratio analyses are repeated using the mean
+% signal and the reference channel after filtering between 0.5 and 10 Hz.
+% The resulting delay and amplitude-ratio measures are saved for both
+% frequency ranges, and all generated figures are exported in both PNG and
+% MATLAB FIG formats.
+
+tic
+clc
+clear 
+close all
+
+%% pre-prossesing  
+load SWS_episode_130202.mat
+% exclude bad channels 
+k= [59];
+SWS_episode = SWS_episode(1:64,:);
+SWS_episode(k,:) =[] ;
+ch_number = size(SWS_episode, 1);
+figure
+hold on 
+for i=1:ch_number
+plot(zscore(SWS_episode(i,:))+10*i)
+end
+%
+
+SWS_episode_neat130202.SWS_episode = SWS_episode;
+SWS_episode_neat130202.excludedChannels =  k;
+save SWS_episode_neat130202.mat SWS_episode k -v7.3
+%% filtering
+load SWS_episode_neat130202 SWS_episode 
+
+up_freq=4;
+down_freq=0.5;
+fs=1250;
+ch_number = size(SWS_episode,1);
+% 
+thal_ch_norm=zeros(ch_number,length(SWS_episode(1,:)));
+for i=1:ch_number
+    thal_ch_norm(i,:)=zscore(SWS_episode(i,:));
+end
+%     save thal_ch_norm.mat thal_ch_norm -v7.3
+thal_ch_norm_filtered_so=zeros(ch_number,length(SWS_episode(1,:)));
+for j=1:ch_number
+    disp (j)
+thal_ch_norm_filtered_so(j,:) = eegfilt(thal_ch_norm(j,:),fs,down_freq,up_freq,0,floor(fs/down_freq)*3,0,'fir1');
+end
+   save thal_ch_norm_filtered_so130202.mat thal_ch_norm_filtered_so -v7.3
+
+
+
+%% Detect and compute delay
+load thal_ch_norm_filtered_so130202.mat thal_ch_norm_filtered_so 
+nbins=100;
+
+Y = zeros(ch_number,length(thal_ch_norm_filtered_so(1,:)));
+ISBLIPE = zeros(ch_number,length(thal_ch_norm_filtered_so(1,:)));
+
+for i=1:size(thal_ch_norm_filtered_so,1)
+[y,IsBlip]  = SOMolle(thal_ch_norm_filtered_so(i,:));
+Y(i,:) = y; % start and stop
+ISBLIPE(i,:) = IsBlip; % peaks and troughts
+end
+% Create a structure and assign variables
+SOdetected.Y = Y;
+SOdetected.ISBLIPE = ISBLIPE;
+
+% Save the structure to a file
+save SOdetected130202.mat SOdetected -v7.3
+
+
+%% find  channel with most SOs
+load SOdetected130202.mat 
+% load thal_ch_norm_filtered_so130202.mat thal_ch_norm_filtered_so 
+% load SWS_episode_neat130202 SWS_episode 
+ISBLIPE = SOdetected.ISBLIPE;
+numSo = zeros(1,size(ISBLIPE,1));
+for i=1:size(ISBLIPE,1) 
+   numSo(1,i) = size(find(ISBLIPE(i,:)==1),2);
+end
+
+% Find the maximum value in the channel
+    maximum_value = max(numSo);
+
+    % Find the index of the maximum value
+    maximum_index = find(numSo == maximum_value);
+    refCh = maximum_index;
+    
+%% delay
+
+ref = ISBLIPE(refCh,:);
+refTime =find(ref==1)/fs;
+delay = zeros(ch_number,length(refTime(1,:)));
+sampBack = fs/2;
+sampForward=fs/2;
+
+for ii=2:ch_number
+
+    for iii=1:size(refTime,2)
+    startsample = round(refTime(iii)*fs)-sampBack;
+    endsample = round(refTime(iii)*fs)+sampForward;
+    data = thal_ch_norm_filtered_so(ii,startsample:endsample);
+    [peaks, locations] = findpeaks(data);
+
+    [maxPeak, maxIndex] = max(peaks);
+    
+    % Get the corresponding location from the 'locations' data
+    maxLocation = locations(maxIndex)+startsample;
+    
+    if isempty(maxLocation)
+        delay(ii,iii) = nan;
+        else
+        delay(ii,iii) = refTime(iii)-(maxLocation/fs);
+    %     close(figure(4))
+    end
+    end
+end
+save daley130202 delay
+ %% plot avraged signal with its raw data for all channels 
+signal = zeros(1,length(thal_ch_norm_filtered_so(refCh,:)));
+t = (1:length(thal_ch_norm_filtered_so(refCh,:)))/fs;
+% Colors = ['g','c','y','m','g','r','y','c'];
+coef = 1:10:640;
+refsamp = round(refTime*fs);
+
+% compute means for all channels 
+
+for i=1:size(refsamp, 2)
+    Sback = refsamp(1,i)-sampBack;
+    Sforward = refsamp(1,i)+sampForward;
+    sample = Sback:Sforward;
+    Means = mean( thal_ch_norm_filtered_so(:, sample));
+    signal(1,sample)= Means;
+end
+
+
+TimeForward = sampForward/fs;
+TimeBack = sampBack/fs;
+TimeLimit = (0.2*fs)/fs;
+
+% plot signal and SO events 
+figure
+plot(t,(signal),'LineWidth',2,'Color','k')
+title('mean signal for all channels130202 ' , 'Color','k')
+xlabel('time','Color','k')
+set(gca,'fontsize',16,'color',[1 1 1])
+set(groot, 'defaultFigureColor', [1 1 1]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]); 
+% hold on 
+% for k=1:size(refsamp, 2)
+% xline(refsamp(k)/fs, '--b')
+% xline((refsamp(k)/fs)+TimeForward,'r')
+% xline((refsamp(k)/fs)-TimeBack,'r')
+% xline((refsamp(k)/fs)+TimeLimit,'m')
+% xline((refsamp(k)/fs)-TimeLimit,'m')
+% end 
+
+%% plot all channels raw data 
+% startSample = 1;
+% endSample = 100000;
+% t_test = (1:endSample)/fs;
+% 
+% sws = SWS_episode;
+% 
+% SwS = zeros(1,length(sws(1,:)));
+% 
+% for m=1:size(thal_ch_norm_filtered_so,1)
+%     SwS = zscore(sws(m,startSample:endSample));
+%     plot (t_test ,(SwS(m,startSample:endSample))+(coef(m)),'color','k','LineWidth',2 )
+% end 
+
+% hold off
+
+%% avrage and ratio between Peak2/peak ref
+signalAll = zeros(1,length(thal_ch_norm_filtered_so(refCh,:)));
+refForMean = ISBLIPE(refCh,:);
+refTime =find(refForMean==1)/fs;
+refsamp = round(refTime*fs);
+delayBetweenPeaks = zeros(1,length(refTime(1,:)));
+MeanPeaks = zeros(1,length(refTime(1,:)));
+MaxPeak = zeros(1,length(refTime(1,:)));
+ratio = zeros(1,length(refTime(1,:)));
+sampBack = fs/2;
+sampForward = fs/2;
+SAMPBACK = round(0.2*fs);
+SAMPFORW = round(0.2*fs);
+nbin = 100;
+
+for ii=1:size(refsamp, 2)
+    Sback = refsamp(1,ii)-sampBack;
+    Sforward = refsamp(1,ii)+sampForward;
+    sample = Sback:Sforward;
+    Means = mean(thal_ch_norm_filtered_so(:, sample));
+    signalAll(1,sample)= Means;
+end
+
+for iii = 1:size(refTime, 2)
+
+    startsample = round(refTime(iii) * fs) - sampBack;
+    endsample = round(refTime(iii) * fs) + sampForward;
+    data = signalAll(1, startsample:endsample);
+    
+    [peakAmplitudes, peakLocations] = findpeaks(data);
+    centerLocation = peakLocations - sampBack - 1;
+    refIndex = find(abs(centerLocation) < SAMPBACK);
+
+    if length(refIndex) > 1
+        [~, maxxIndex] = max(peakAmplitudes(refIndex));
+        refIndex = refIndex(maxxIndex);
+    end
+
+    refpeakAmplitude = peakAmplitudes(refIndex);
+
+    peakAmplitudes(refIndex) = [];
+    peakLocations(refIndex) = [];
+
+    [~, sortIndices] = sort(peakAmplitudes);
+    sortedPeakAmplitudes = peakAmplitudes(sortIndices);
+
+    if isempty(peakAmplitudes) || isempty(refpeakAmplitude)
+        delayBetweenPeaks(1,iii) = NaN;
+        ratio(1,iii) = NaN;
+    else
+    ratio(iii) = sortedPeakAmplitudes(end) / refpeakAmplitude;
+    distance = peakLocations(sortIndices(end)) + startsample;
+    delayBetweenPeaks(iii) = (distance/fs) - refTime(1, iii);
+    end
+
+end
+
+ figure
+plot(delayBetweenPeaks, ratio, 'Color', 'k', 'Marker', 'o', 'LineStyle', 'none', 'MarkerFaceColor', 'k','MarkerSize',8);
+
+xlabel('delay(s)','Color','k')
+ylabel('ratio(peak/PEAK) ','Color','k')
+title('For avrage on filtered data 130202', 'Color', 'k')
+legend ('peak = second peak and PEAK = first peak (reference peak)','textcolor','k')
+set(gca,'fontsize',16,'color',[1 1 1])
+set(groot, 'defaultFigureColor', [1 1 1]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+set(gcf, 'Color', 'white');
+figure
+histogram(delayBetweenPeaks,nbin,'FaceColor','k')
+set(gca,'fontsize',16,'color',[1 1 1])
+set(groot, 'defaultFigureColor', [1 1 1]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+xlabel('Delay(s)')
+title('Histogram Delays for avrage on filtered data 130202', 'Color', 'k')
+
+figure
+histogram(ratio,nbin,'FaceColor','k')
+set(gca,'fontsize',16,'color',[1 1 1 ])
+set(groot, 'defaultFigureColor', [1 1 1]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0 ], 'defaultAxesZColor', [0 0 0]);
+xlabel('Delay(s)')
+title('Histogram peak/Peak for avrage on filtered data 12806', 'Color', 'k')
+
+%% Histogram of main peak amp
+
+biggestPeakAmplitude = zeros(1,length(refTime(1,:)));
+for iii=1:size(refTime,2)
+    startsample = round(refTime(iii)*fs)-sampBack;
+    endsample = round(refTime(iii)*fs)+sampForward;
+    data = signalAll(1,startsample:endsample);
+    [peakAmplitudes, peakLocations] = findpeaks(data);
+
+   % Find the index of the biggest peak
+    [~, maxPeakIndex] = max(peakAmplitudes);
+    % Get the amplitude of the biggest peak
+    biggestPeakAmplitude(iii) = peakAmplitudes(maxPeakIndex);
+  
+ end
+figure
+histogram(biggestPeakAmplitude,nbin,'FaceColor','k')
+set(gca,'fontsize',16,'color',[1 1 1])
+set(groot, 'defaultFigureColor', [1 1 1]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0 ], 'defaultAxesZColor', [0 0 0]);
+xlabel('Amplitude','Color','k');
+ylabel('Count','Color','k');
+title('Histogram of Amplitude values of the biggest peak 130202','Color','k');
+% Get handles to all open figures
+figHandles = findall(0, 'Type', 'figure');
+
+% Maximize each figure
+for i = 1:numel(figHandles)
+    set(figHandles(i), 'WindowState', 'maximized');
+end
+
+
+
+
+% Get handles to all open figures
+figHandles = findall(0, 'Type', 'figure');
+
+% Maximize each figure
+for i = 1:numel(figHandles)
+    set(figHandles(i), 'WindowState', 'maximized');
+end
+
+%% Histogram of STD and CV biggest amplitude for all channels 
+% Colors = ['g','c','y','m','g','r','y','c'];
+coefs = 1:10:640;
+
+SampBack = fs/2;
+SampForward = fs/2;
+TimeBack = 0.5;
+TimeForward = 0.5;
+sampLimit = 0.2*fs;
+
+biggestPeakAmplitudeForEachChannel = zeros(1,8);
+MeanForEachChannel = zeros(1,length(refTime(1,:)));
+StdAll = zeros(1,length(refTime(1,:)));
+
+for i=1:size(refsamp, 2)    
+    startsample = round(refTime(i)*fs)-sampLimit;
+    endsample = round(refTime(i)*fs)+sampLimit;
+    for j=1:size(thal_ch_norm_filtered_so,1)
+    data = thal_ch_norm_filtered_so(j,startsample:endsample);
+    [peakAmplitudes, peakLocations] = findpeaks(data);
+    if isempty(peakAmplitudes)
+        biggestPeakAmplitudeForEachChannel(1,j) = nan;
+        else
+       % Find the index of the biggest peak
+        [~, maxPeakIndex] = max(peakAmplitudes);
+        % Get the amplitude of the biggest peak
+        biggestPeakAmplitudeForEachChannel(1,j) = peakAmplitudes(maxPeakIndex);
+        end
+    end
+
+    MeanForEachChannel(1,i) = nanmean(biggestPeakAmplitudeForEachChannel);
+    StdAll(1,i) = std(biggestPeakAmplitudeForEachChannel);
+    
+
+end 
+CV = StdAll./MeanForEachChannel;
+%
+figure
+histogram(MeanForEachChannel,nbin,'FaceColor','k')
+title('mean for all Channels 130202','color','k')
+xlabel('mean','color','k')
+set(gca,'fontsize',16,'color',[1 1 1])
+set(groot, 'defaultFigureColor', [1 1 1]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+
+figure
+histogram(StdAll,nbin,'FaceColor','k')
+set(gca,'fontsize',16,'color',[1 1 1])
+set(groot, 'defaultFigureColor', [1 1 1]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0 ]);
+xlabel('STD for all channels','color','k')
+title('Histogram STD for all channels 130202', 'Color', 'k')
+
+
+figure
+histogram(CV,nbin,'FaceColor','k')
+set(gca,'fontsize',16,'color',[1 1 1])
+set(groot, 'defaultFigureColor', [ 1 1 1 ]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+xlabel('CV for all channels','Color','k')
+title('Histogram CV for all channels 130202', 'Color', 'k')
+
+%% Filtering between 0.5 to 10 Hz and detect peaks on the raw signal 
+sws = thal_ch_norm_filtered_so;
+swsFiltered = zeros(size(sws,1),length(sws(refCh,:)));
+signalAllRaw = zeros(1,length(sws(refCh,:)));
+fs = 1250;
+down_freq = 0.5;
+up_freq = 10;
+
+for ii=1:size(thal_ch_norm_filtered_so,1)
+    
+    Means = mean(thal_ch_norm_filtered_so(:, :));
+    signalAllRaw(1,:)= Means;
+
+end
+
+swsFiltered(1,:) = eegfilt(signalAllRaw(1,:),fs,down_freq,up_freq,0,floor(fs/down_freq)*3,0,'fir1');
+
+%% for the raw data 
+biggestPeakAmplitudeRaw = zeros(1,length(refTime(1,:)));
+ratioRaw = zeros (1,length(refTime(1,:)));
+delayRaw = zeros (1,length(refTime(1,:)));
+sampLimit = 0.2*fs;
+sampref = fs*refTime;
+SAMPBACK = round(0.2*fs);
+SAMPFORW = round(0.2*fs);
+
+
+for iii = 1:size(refTime, 2)
+
+    startsample = round(refTime(iii) * fs) - SampBack;
+    endsample = round(refTime(iii) * fs) + SampForward;
+    dataRaw = swsFiltered(1, startsample:endsample);
+    
+%     STARTSAMP = round(refTime(iii) * fs) - SAMPBACK;
+%     ENDSAMP = round(refTime(iii) * fs) + SAMPFORW;
+%     DATARAW = swsFiltered(1, STARTSAMP:ENDSAMP);
+
+
+%     [PeakAmplitudesRaw, PeakLocationsRaw] = findpeaks(DATARAW);
+
+%     temppeakLocationsRaw = peakLocationsRaw + startsample;
+
+%     [refPeak, indrefpeak]= peakAmplitudesRaw(abs(temppeakLocationsRaw) <= sampLimit);
+%     [refPeak , indrefpeak] = max(PeakAmplitudesRaw);
+%     indrefpeaksamp = PeakLocationsRaw(indrefpeak) + STARTSAMP;
+
+    [peakAmplitudesRaw, peakLocationsRaw] = findpeaks(dataRaw);
+    centerLocation = peakLocationsRaw - SampBack - 1;
+    refIndex = find(abs(centerLocation) < SAMPBACK);
+
+    if length(refIndex) > 1
+        [~, maxxIndex] = max(peakAmplitudesRaw(refIndex));
+        refIndex = refIndex(maxxIndex);
+    end
+
+    refpeakAmplitude = peakAmplitudesRaw(refIndex);
+
+    peakAmplitudesRaw(refIndex) = [];
+    peakLocationsRaw(refIndex) = [];
+
+    [~, sortIndices] = sort(peakAmplitudesRaw);
+    sortedPeakAmplitudesRaw = peakAmplitudesRaw(sortIndices);
+
+    if isempty(peakAmplitudesRaw) || isempty(refpeakAmplitude)
+        delayRaw(1,iii) = NaN;
+        ratioRaw(1,iii) = NaN;
+    else
+    ratioRaw(iii) = sortedPeakAmplitudesRaw(end) / refpeakAmplitude;
+    distance = peakLocationsRaw(sortIndices(end)) + startsample;
+    delayRaw(iii) = (distance/fs) - refTime(1, iii);
+    end
+
+end
+
+ figure
+plot(delayRaw, ratioRaw, 'Color', 'k', 'Marker', 'o', 'LineStyle', 'none', 'MarkerFaceColor', 'k','MarkerSize',8);
+set(gca,'fontsize',16,'color',[1 1 1])
+set(groot, 'defaultFigureColor', [ 1 1 1]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+set(gcf, 'Color', 'white');
+xlabel('delay(s)','Color','k')
+ylabel('ratio(peak/PEAK)','Color','k')
+title('delay and ratio mean of Raw data filtered between 0.5 to 10 HZ 130202', 'Color', 'k')
+legend ('peak = second peak and PEAK = first peak (reference peak)','textcolor','k')
+%
+figure
+histogram(ratioRaw,nbin,'FaceColor','k')
+set(gca,'fontsize',16,'color',[1 1 1])
+set(groot, 'defaultFigureColor', [1 1 1]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+xlabel('Ratio','Color','k');
+ylabel('Count','Color','k');
+title('Histogram of ratio for mean of Raw data filtered between 0.5 to 10 channel','Color','k');
+%% only for refrence channels 
+ biggestPeakAmplitudeRaw = zeros(1,length(refTime(1,:)));
+ratioRawOneChannel = zeros (1,length(refTime(1,:)));
+delayRaw = zeros (1,length(refTime(1,:)));
+sampLimit = 0.2*fs;
+sampref = fs*refTime;
+SAMPBACK = round(0.2*fs);
+SAMPFORW = round(0.2*fs);
+
+fs=1250;
+down_freq = 0.5;
+up_freq = 10;
+
+%exclude reference signal and filter between 0.5 to 10 Hz
+
+REFchannel = zeros (1,length(sws(refCh,:)));
+REFchannel(1,:) = sws(refCh,:);
+REFchannelFiltered = eegfilt(REFchannel(1,:),fs,down_freq,up_freq,0,floor(fs/down_freq)*3,0,'fir1');
+save REFchannelFilteredBetween0.5to10Hz130202.mat REFchannelFiltered
+%% 
+load REFchannelFilteredBetween0.5to10Hz130202.mat REFchannelFiltered
+load thal_ch_norm_filtered_so130202.mat
+
+%for 0.5 to 10 HZ 
+
+for iii = 1:size(refTime, 2)
+
+    startsample = round(refTime(iii) * fs) - SampBack;
+    endsample = round(refTime(iii) * fs) + SampForward;
+    dataRaw = REFchannelFiltered(1, startsample:endsample);
+    dataRaw = thal_ch_norm_filtered_so(refCh, startsample:endsample);
+    [peakAmplitudesRaw, peakLocationsRaw] = findpeaks(dataRaw);
+    centerLocation = peakLocationsRaw - SampBack - 1;
+    refIndex = find(abs(centerLocation) < SAMPBACK);
+
+    if length(refIndex) > 1
+        [~, maxxIndex] = max(peakAmplitudesRaw(refIndex));
+        refIndex = refIndex(maxxIndex);
+    end
+
+    refpeakAmplitude = peakAmplitudesRaw(refIndex);
+
+    peakAmplitudesRaw(refIndex) = [];
+    peakLocationsRaw(refIndex) = [];
+
+    [~, sortIndices] = sort(peakAmplitudesRaw);
+    sortedPeakAmplitudesRaw = peakAmplitudesRaw(sortIndices);
+
+    if isempty(peakAmplitudesRaw)
+        delayRaw(1,iii) = NaN;
+        ratioRawOneChannel(1,iii) = NaN;
+    else
+    ratioRawOneChannel(iii) = sortedPeakAmplitudesRaw(end) / refpeakAmplitude;
+    distance = peakLocationsRaw(sortIndices(end)) + startsample;
+    delayRaw(iii) = (distance/fs) - refTime(1, iii);
+    end
+
+end
+%save data
+SOreferenceChannelDelayAndRatioUpFreq.delay = delayRaw;
+SOreferenceChannelDelayAndRatioUpFreq.ratio = ratioRawOneChannel;
+SOreferenceChannelDelayAndRatioUpFreq.RefCh = refCh;
+save SOreferenceChannelDelayAndRatioFrom0.5to10Hz130202.mat    SOreferenceChannelDelayAndRatioUpFreq
+
+
+ figure
+plot(delayRaw, ratioRawOneChannel, 'Color', 'k', 'Marker', 'o', 'LineStyle', 'none', 'MarkerFaceColor', 'k','MarkerSize',8);
+set(gca,'fontsize',16,'color',[1 1 1])
+set(groot, 'defaultFigureColor', [1 1 1]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+set(gcf, 'Color', 'white');
+xlabel('delay(s)','Color','k')
+ylabel('ratio(peak/PEAK)','Color','k')
+title('For reference channel that filtered between 0.5 to 10 HZ ', 'Color', 'k')
+legend ('peak = second peak and PEAK = first peak (reference peak)','textcolor','k')
+%
+figure
+histogram(ratioRawOneChannel,nbin,'FaceColor','k')
+set(gca,'fontsize',16,'color',[1 1 1 ])
+set(groot, 'defaultFigureColor', [1 1 1 ]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+xlabel('Ratio','Color','k');
+ylabel('Count','Color','k');
+title('Histogram of ratio for reference channel 130202','Color','K');
+
+
+% for 0.5 to 4 HZ 
+
+for iii = 1:size(refTime, 2)
+
+    startsample = round(refTime(iii) * fs) - SampBack;
+    endsample = round(refTime(iii) * fs) + SampForward;
+%     dataRaw = REFchannelFiltered(1, startsample:endsample);
+    dataRaw = thal_ch_norm_filtered_so(refCh, startsample:endsample);
+    [peakAmplitudesRaw, peakLocationsRaw] = findpeaks(dataRaw);
+    centerLocation = peakLocationsRaw - SampBack - 1;
+    refIndex = find(abs(centerLocation) < SAMPBACK);
+
+    if length(refIndex) > 1
+        [~, maxxIndex] = max(peakAmplitudesRaw(refIndex));
+        refIndex = refIndex(maxxIndex);
+    end
+
+    refpeakAmplitude = peakAmplitudesRaw(refIndex);
+
+    peakAmplitudesRaw(refIndex) = [];
+    peakLocationsRaw(refIndex) = [];
+
+    [~, sortIndices] = sort(peakAmplitudesRaw);
+    sortedPeakAmplitudesRaw = peakAmplitudesRaw(sortIndices);
+
+    if isempty(peakAmplitudesRaw)
+        delayLowFreq(1,iii) = NaN;
+        ratioLowfreq(1,iii) = NaN;
+    else
+    ratioLowfreq(iii) = sortedPeakAmplitudesRaw(end) / refpeakAmplitude;
+    distance = peakLocationsRaw(sortIndices(end)) + startsample;
+    delayLowFreq(iii) = (distance/fs) - refTime(1, iii);
+    end
+
+end
+%save data
+SOreferenceChannelDelayAndRatio.delay = delayLowFreq;
+SOreferenceChannelDelayAndRatio.ratio = ratioLowfreq;
+SOreferenceChannelDelayAndRatio.RefCh = refCh;
+save SOreferenceChannelDelayAndRatioFrom0.5to4Hz130202.mat    SOreferenceChannelDelayAndRatio
+
+
+ figure
+plot(delayLowFreq, ratioLowfreq, 'Color', 'k', 'Marker', 'o', 'LineStyle', 'none', 'MarkerFaceColor', 'k','MarkerSize',8);
+set(gca,'fontsize',16,'color',[1 1 1])
+set(groot, 'defaultFigureColor', [1 1 1]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+set(gcf, 'Color', 'white');
+xlabel('delay(s)','Color','k')
+ylabel('ratio(peak/PEAK)','Color','k')
+title('For reference channel that filtered between 0.5 to 10 HZ ', 'Color', 'k')
+legend ('peak = second peak and PEAK = first peak (reference peak)','textcolor','k')
+%
+figure
+histogram(ratioLowfreq,nbin,'FaceColor','k')
+set(gca,'fontsize',16,'color',[1 1 1 ])
+set(groot, 'defaultFigureColor', [1 1 1 ]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+xlabel('Ratio','Color','k');
+ylabel('Count','Color','k');
+title('Histogram of ratio for reference channel 130202','Color','K');
+
+%% plot for test the algorithm 
+% 
+% eventNum = 1; % event num = 1,9,18,96
+% T = (round(refTime(eventNum) * fs) - SampBack:round(refTime(eventNum) * fs) + SampForward)/fs;
+% figure
+% plot(T,REFchannelFiltered(1,round(refTime(eventNum) * fs) - SampBack:round(refTime(eventNum) * fs) + SampForward),'y')
+% xline(refTime(eventNum),'-g')
+% set(gca,'fontsize',16,'color',[0 0 0])
+% set(groot, 'defaultFigureColor', [0 0 0]);
+% set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+% set(gcf, 'Color', 'k');
+% legend(['ratio = ' num2str(ratio(eventNum)) ], ['delay = ' num2str(delayRaw(eventNum))],'TextColor', 'red', 'Location', 'northwest')
+% %
+% histogram(ratio,nbin,'FaceColor','g')
+% set(gca,'fontsize',16,'color',[0 0 0])
+% set(groot, 'defaultFigureColor', [0 0 0]);
+% set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+% xlabel('ratio')
+% title('Histogram ratios ', 'Color', 'white')
+%% plot 0.5 to 10 and 0.5 to 4 ratios 
+ figure
+plot(ratioRaw, ratio, 'Color', 'K', 'Marker', 'o', 'LineStyle', 'none', 'MarkerFaceColor', 'K','MarkerSize',8);
+set(gca,'fontsize',16,'color',[1 1 1])
+set(groot, 'defaultFigureColor', [1 1 1]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+set(gcf, 'Color', 'white');
+xlabel('ratio for 0.5 to 10 Hz(s)','Color','k')
+ylabel('ratio for 0.5 to 4 Hz (s)','Color','k')
+
+%% plot ratio for reference and mean filtered between 0.5 to 10 Hz
+ figure
+plot(ratioRaw, ratioRawOneChannel, 'Color', 'k', 'Marker', 'o', 'LineStyle', 'none', 'MarkerFaceColor', 'k','MarkerSize',8);
+set(gca,'fontsize',16,'color',[1 1 1])
+set(groot, 'defaultFigureColor', [1 1 1 ]);
+set(groot, 'defaultAxesXColor', [0 0 0], 'defaultAxesYColor', [0 0 0], 'defaultAxesZColor', [0 0 0]);
+set(gcf, 'Color', 'white');
+xlabel('ratio for mean signal filtered between 0.5 to 10 Hz(s)','Color','k')
+ylabel('ratio for reference 0.5 to 4 Hz (s)','Color','k')
+
+%% save figures
+% Get the path to the directory where you want to save the figures
+save_path = 'D:/daniel/Mouse17-130202/so analysis';
+
+% Get a list of all open figures
+fig_list = findobj('Type', 'figure');
+
+% Save each figure to the specified path
+for i = 1:length(fig_list)
+    fig = fig_list(i);
+    saveas(fig, fullfile(save_path, sprintf('figure_%d.png', i)));
+    saveas(fig, fullfile(save_path, sprintf('figure_%d.fig', i)));
+
+end
+toc
+
