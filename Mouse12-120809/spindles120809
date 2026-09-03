@@ -1,0 +1,457 @@
+%% Sleep spindle detection, reference-channel selection, and global/local classification
+% This script preprocesses NREM thalamic EEG data by selecting the
+% thalamic channels and filtering the signals between 7 and 15 Hz to
+% isolate sleep spindle activity.
+%
+% Sleep spindles are detected independently for each thalamic channel,
+% and the corresponding spindle peaks are identified from the filtered
+% signals. A binary spindle-event matrix is then constructed across
+% channels, and the mean event activity is calculated to characterize the
+% temporal distribution of spindle activity.
+%
+% For each predefined group of eight thalamic channels, the channel with
+% the largest number of detected spindle events is selected as the
+% representative reference channel. The reference channel with the
+% largest overall number of spindle events is then selected for further
+% analysis.
+%
+% Spindle activity around the events of the main reference channel is
+% extracted from the mean spindle-event signal, and the average spindle
+% waveform is calculated. The mean signal amplitude during each spindle
+% event is also calculated for each representative reference channel.
+%
+% Based on a predefined amplitude threshold of 0.76, spindle events are
+% classified as global or local. The corresponding spindle events and
+% real peak information are stored separately for global and local
+% spindles for each representative reference channel.
+%
+% The resulting reference-channel information and global/local spindle
+% classifications are saved in a MAT file. Generated figures are saved
+% in both PNG and MATLAB FIG formats in the specified output directory.
+
+%% section zero :body 
+clc
+clear
+% close all
+fs=1250;
+% ch_number=64;
+%up and down frequency for data filtering in SECTION one : pre-processing
+up_freq=15;
+down_freq=7;
+%start and end time for demonstrate event in section four:resualt
+start_time=0.1;
+end_time=20;
+%spindle_event provide number of spindles pick on indivisual channels in the section four:resualt with '*' sign
+spindle_event=20;
+%read data and craet new thal_ch.mat
+% load ('SWS_episode_120809.mat')
+% thal_allchanel_Mouse12_120806=double(thal_allchanel_Mouse12_120806);
+%%
+%% SECTION one : pre-processing 
+
+% exclude bad channels 
+k= [];
+
+chs = (1:64);
+chs(k) = [];
+% 
+% SWS_episode = SWS_episode(1:64,:);
+% SWS_episode(k,:) =[] ;
+% ch_number = size(SWS_episode, 1);
+% figure
+% hold on 
+% for i=1:ch_number
+% plot(zscore(SWS_episode(i,:))+10*i)
+% end
+% %
+% 
+% thal_ch_norm=zeros(ch_number,length(SWS_episode(1,:)));
+% for i=1:ch_number
+%     thal_ch_norm(i,:)=zscore(SWS_episode(i,:));
+% end
+% %     save thal_ch_norm.mat thal_ch_norm -v7.3
+% thal_ch_norm_filtered=zeros(ch_number,length(SWS_episode(1,:)));
+% for j=1:ch_number
+%     disp (j)
+% thal_ch_norm_filtered(j,:) = eegfilt(thal_ch_norm(j,:),fs,down_freq,up_freq,0,floor(fs/down_freq)*3,0,'fir1');
+% end
+%    save thal_ch_norm_filtered_120809.mat thal_ch_norm_filtered -v7.3
+
+   %% spindle detection 
+% load('thal_ch_norm.mat')
+% load('thal_ch_norm_filtered.mat')
+% t=((1:length(thal_ch_norm_filtered(1,:))))/fs; %time
+% samples=zeros(length(SWS_episode(1,:)),2);
+% samples(:,1)=t;
+% for k=1:ch_number
+%     samples(:,2)=thal_ch_norm_filtered(k,:);
+%     thal_spindles = find_spindles(samples,2,'threshold',2.5, 'peak',4,'durations',[500 3000]);
+%       save (['thal_spindles_120809_ch' num2str(k) '.mat'],'thal_spindles') 
+% end
+
+%% SECTION three : find pick
+% for m=1:ch_number
+%    load  (['thal_spindles_120809_ch' num2str(m) '.mat'])
+%    onset=thal_spindles(:,1);
+%    offset=thal_spindles(:,3);
+%    onset_ind=round(onset*fs);
+%    offset_ind=round(offset*fs);
+%    real_peaks=zeros(2,length(onset_ind));
+%    for n=1:length(onset_ind)
+%        thal_ch_norm_filtered_sample=thal_ch_norm_filtered(m,onset_ind(n):offset_ind(n));
+%          [pks,locs] = max(thal_ch_norm_filtered_sample);
+%          real_peaks(:,n)=[pks locs+onset_ind(n)-1];
+% 
+%    end
+%     save (['real_peaks_120809_' num2str(m) '.mat'],'real_peaks') 
+% 
+% 
+% end 
+ %% section four:resualt
+% % load('thal_ch_norm_filtered.mat') 
+% figure
+% hold on
+% for i=1:ch_number
+%    load  (['thal_spindles_120809_ch' num2str(i) '.mat'])
+% %    load (['real_peaks' num2str(i) '.mat'],'real_peaks')
+%    start_sample=start_time*fs;
+%    end_sample= end_time*fs;
+%    t1=(start_sample:end_sample)/fs;
+%    thal_ch_norm_filtered_sample = thal_ch_norm_filtered(i,start_sample:end_sample);
+%    sws_sample = SWS_episode(i,start_sample:end_sample);
+%    plot (t1,thal_ch_norm_filtered_sample+(2*i),'y')
+%    plot (t1,zscore(sws_sample)+(1*i),'g')
+%    title('Spindles in thalamus ')
+%    xlabel('time(ms)')
+%    ylabel('Chanels')
+%    set(gca,'fontsize',16, 'color', [0 0 0 ]);
+%    
+% % %    for j=1:spindle_event
+% % %          t2=[thal_spindles(j,1),thal_spindles(j,3)];
+% % %          plot(t2,[real_peaks(1,j)+(1*i) real_peaks(1,j)+(1*i)],'k')
+% % %           plot(real_peaks(2,j)/fs,real_peaks(1,j)+(1*i),'*k')
+% % %    end
+%       for j=1:spindle_event
+% %              t2=[thal_spindles(j,1),thal_spindles(j,3)];
+% %              plot(t2,[real_peaks(1,j)+(1*i) real_peaks(1,j)+(1*i)],'k')
+%               plot(thal_spindles(j,1),thal_ch_norm_filtered(i,round(thal_spindles(j,1)*fs))+(2*i),'*r')
+%               plot(thal_spindles(j,3),thal_ch_norm_filtered(i,round(thal_spindles(j,3)*fs))+(2*i),'*m')
+% 
+%        end
+%    
+% end
+%%  methode 2 for sepration 
+% % make zero for times that dont have event and 1 for events and then compute average
+% load thal_ch_norm_filtered_120809.mat
+% fs=1250;
+% CHNUM = size(thal_ch_norm_filtered,1);
+% Newthal_ch_norm_filtered = zeros(CHNUM,length(thal_ch_norm_filtered(1,:)));
+% signalCH = zeros (CHNUM,length(thal_ch_norm_filtered(1,:))); 
+% for i=1:CHNUM
+%     load  (['thal_spindles_120809_ch' num2str(i) '.mat']);
+%     for j=1:size(thal_spindles,1)
+% %         Newthal_ch_norm_filtered(i,round(thal_spindles(j,1)*fs):round(thal_spindles(j,3)*fs)) = thal_ch_norm_filtered(i,round(thal_spindles(j,1)*fs):round(thal_spindles(j,3)*fs));
+%         Newthal_ch_norm_filtered(i,round(thal_spindles(j,1)*fs):round(thal_spindles(j,3)*fs)) = 1;
+%     end
+%  
+% end 
+% 
+% 
+% % compute avg
+% 
+% Means = mean( Newthal_ch_norm_filtered(:, :));
+% signal= Means;
+% save meansSignalForMethode2ToSeprate120809    signal
+% %
+% figure
+% hold on 
+% for i=1:ch_number
+% plot((thal_ch_norm_filtered(i,:))+10*i)
+% end
+% %
+% % OnesSamples = transpose(find(Newthal_ch_norm_filtered==1));
+% Diff = diff(signal);
+% startsSamplesForMeans = find(Diff > 0);
+% toRemove = false(1, size(startsSamplesForMeans, 2));
+% for m = 1:size(startsSamplesForMeans, 2)
+%     if signal(1, startsSamplesForMeans(m)-1) ~= 0
+%         toRemove(m) = true;
+%     end 
+% end
+% 
+% startsSamplesForMeans(toRemove) = [];
+% 
+% startsTimesForMeans = startsSamplesForMeans/fs;
+% %
+% endsSamplesForMeans = find(Diff < 0);
+% toRemoveEnd = false(1,size(endsSamplesForMeans,2));
+% for n = 1:size(endsSamplesForMeans, 2)
+%     if signal(1, endsSamplesForMeans(n)+1) ~= 0
+%         toRemoveEnd(n) = true;
+%     end 
+% end
+% 
+% endsSamplesForMeans(toRemoveEnd) = [];
+% 
+% endsTimesForMeans = endsSamplesForMeans/fs;
+%%
+% figure 
+% t2 = (1:length(Newthal_ch_norm_filtered(1,:)))/fs;
+% plot(t2,signal,'Color','yellow','LineWidth',2.5)
+% set(gca,'fontsize',16,'color',[0 0 0])
+% set(groot, 'defaultFigureColor', [0 0 0]);
+% set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+% hold on
+% for k=1:size(startsTimesForMeans,2)
+%     xline(startsTimesForMeans(1,k),'Color','c','LineWidth',2)
+% end
+% 
+% for k= 1:size(endsTimesForMeans,2)
+%         xline(endsTimesForMeans(1,k),'Color','green','LineWidth',2)
+% end
+% hold off
+%%
+% find channel with the most spindle event 
+load thal_ch_norm_filtered_120809.mat
+load meansSignalForMethode2ToSeprate120809    signal
+
+mostSpinForEachCh = zeros(2,8);
+fs=1250;
+for i = 1:8
+    max_value = -inf;
+    for j = (i-1)*8+1:i*8
+        ch_ind = find(chs == j);
+        if(isempty(ch_ind))
+            continue
+        end
+        load  (['thal_spindles_120809_ch' num2str(ch_ind) '.mat']);
+        if(max_value < size(thal_spindles,1))
+            max_value = size(thal_spindles,1);
+            mostSpinForEachCh(1,i) = ch_ind;
+            mostSpinForEachCh(2,i) = max_value;
+        end
+    end
+end
+
+% compute avg for signal variable between start and end of each event for refrence channel 
+
+temp = (max(mostSpinForEachCh(2,:)));
+temp2 = find(mostSpinForEachCh == temp)-1;
+mostSpinCh = mostSpinForEachCh(temp2);
+maxSpin = temp;
+
+refCH = load  (['thal_spindles_120809_ch' num2str(mostSpinCh) '.mat']);
+for k=1:size(refCH.thal_spindles,1)
+    DiffRef(k) = refCH.thal_spindles(k,3) - refCH.thal_spindles(k,1) ;
+end
+BigDiff = round(max(DiffRef)*fs);
+means = zeros(maxSpin,round(BigDiff)) ;
+for j=1:maxSpin
+    startSpin = round(refCH.thal_spindles(j,1)*fs);
+    endSpin = round(refCH.thal_spindles(j,3)*fs);
+    means(j,1:endSpin-startSpin+1) = signal(1,startSpin:endSpin);
+%     meansAll = meansAll + means;
+end 
+Avg = mean(means(:,:));
+TMean = (1:length(Avg))/fs;
+figure
+plot(TMean,Avg,'LineWidth',2,'Color','yellow')
+title ('avg for the spindles base on reference channel ','Color','white')
+xlabel('time','Color','white')
+set(gca,'fontsize',16,'color',[0 0 0])
+set(groot, 'defaultFigureColor', [0 0 0]);
+set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+
+% meanAmp =
+
+
+%%
+% nbin = 50;
+% nbin_new = 1000;
+% figure
+% histogram (DiffRef,nbin,'FaceColor','white','EdgeColor','green')
+% title ('histogram spindles duration for reference channel (Channel 7) ','Color','white')
+% xlabel('duration(s)','Color','white')
+% ylabel ('count','Color','white')
+% set(gca,'fontsize',16,'color',[0 0 0])
+% set(groot, 'defaultFigureColor', [0 0 0]);
+% set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+% 
+% %
+% figure
+% histogram (Avg,nbin_new,'FaceColor','red','EdgeColor','green')
+% title ('histogram spindles amplitude for reference channel (Channel 7) ','Color','white')
+% xlabel('amplitude','Color','white')
+% ylabel ('count','Color','white')
+% set(gca,'fontsize',16,'color',[0 0 0])
+% set(groot, 'defaultFigureColor', [0 0 0]);
+% set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+% % 
+% figure
+% histogram (signal,nbin,'FaceColor','red','EdgeColor','green')
+% title ('histogram spindles amplitude for reference channel (Channel 13) ','Color','white')
+% xlabel('amplitude','Color','white')
+% ylabel ('count','Color','white')
+% set(gca,'fontsize',16,'color',[0 0 0])
+% set(groot, 'defaultFigureColor', [0 0 0]);
+% set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+
+%%
+load meansSignalForMethode2ToSeprate120809    signal
+CHNUM = size(thal_ch_norm_filtered,1);
+% load('SWS_episode_new_90.mat')
+
+startSam = 11045;
+SampInterval = 3*fs;
+eventNUM = 1;
+start_t_sample = 6*fs;
+end_t_sample = 12*fs;
+% t = (start_t_sample:length(SWS_episode(1,startSam-(SampInterval):startSam+(SampInterval))))/fs;
+t= (start_t_sample:end_t_sample)/fs;
+figure
+plot(t,(signal(1,startSam-(SampInterval):startSam+(SampInterval))*3)-5,'Color','yellow','LineWidth',2.5)
+set(gca,'fontsize',16,'color',[0 0 0])
+set(groot, 'defaultFigureColor', [0 0 0]);
+set(groot, 'defaultAxesXColor', [1 1 1], 'defaultAxesYColor', [1 1 1], 'defaultAxesZColor', [1 1 1]);
+hold on 
+coef = 2:5:337;
+% sepraterCH = [8 16 21 29 37 45 53];
+% for i=1:CHNUM
+%     if i == mostSpinCh
+%        plot(t,zscore(SWS_episode(i,startSam-(SampInterval):startSam+(SampInterval)))+coef(i),'Color','white','LineWidth',1.5)
+%        i=i+1;
+%     end
+%     plot(t,zscore(SWS_episode(i,startSam-(SampInterval):startSam+(SampInterval)))+coef(i),'Color','green','LineWidth',1.5)
+%     load  (['thal_spindles_120809_ch' num2str(i) '.mat'])
+%     if thal_spindles(eventNUM,1) > (SampInterval/fs) && thal_spindles(eventNUM,1) < ((SampInterval*2*fs)/fs) 
+%      plot(thal_spindles(eventNUM,1),zscore(SWS_episode(i,round(thal_spindles(eventNUM,1)*fs)))+coef(i),'*r')
+%      plot(thal_spindles(eventNUM,3),zscore(SWS_episode(i,round(thal_spindles(eventNUM,3)*fs)))+coef(i),'*m')
+%     end
+%     
+% end 
+% 
+% for  i=sepraterCH
+%         yline(coef(i)+2,'Color','white','LineWidth',2.5)
+% end 
+% hold off
+% 
+% % 
+% % for j=1:length(difStart(1,:))
+% %     xline(difStart(1,j),'Color','c','LineWidth',2)
+% %     xline(difEnd(1,j),'Color','y','LineWidth',2)
+% % end 
+% % hold off
+% ylim([-10 45])
+%%
+MensnsForChNUM = zeros(size(thal_ch_norm_filtered,1),length(thal_ch_norm_filtered(mostSpinCh,:)));
+% SUM = size(1,BigDiff);
+ChNUM = size(thal_ch_norm_filtered,1);
+coeff = 1:2:20;
+figure
+hold on 
+for i = ChNUM
+    load  (['thal_spindles_120809_ch' num2str(i) '.mat'])
+    for k=1:size(thal_spindles,1)
+        startSpin = round(thal_spindles(k,1)*fs);
+        endSpin = round(thal_spindles(k,3)*fs);
+        SUM(k,1:endSpin-startSpin+1) = thal_ch_norm_filtered(i,startSpin:endSpin);
+%         SUM = SUM + thal_ch_norm_filtered(i,(thal_spindles(k,1)*fs):(thal_spindles(k,3)*fs));
+    end 
+    Average = mean(SUM(:,:));
+    tt = (1:length(Average))/fs;
+%     MensnsForChNUM(i,:) = mean (thal_ch_norm_filtered(i,:));
+    if i == mostSpinCh
+        plot(tt,Average+(i),'LineWidth',1.5)
+    else 
+        plot(tt,Average+(i),'LineWidth',1.5,'Color','red')
+        
+    end 
+    
+end
+%%
+MEAN = {};
+for k=1:size(mostSpinForEachCh,2)
+    load  (['thal_spindles_120809_ch' num2str(mostSpinForEachCh(1,k)) '.mat'])
+    load meansSignalForMethode2ToSeprate120809    signal
+    
+    MeAN = zeros(1,size(thal_spindles,1));
+%     MEAN = zeros(size(mostSpinForEachCh,2),size(thal_spindles,1));
+    for i=1:size(thal_spindles,1)
+        startSpindleSample = thal_spindles(i,1)*fs;
+        endSpindleSample = thal_spindles(i,3)*fs;
+        MeAN(1,i) = mean(signal(1,startSpindleSample:endSpindleSample),'all');
+    end
+    MEAN{k}=MeAN;
+    Meadian = median(MeAN);
+    figure
+    
+    hist(MeAN,30)
+    title('Histogram AVG signal between start and end spindles base on ref channel for 120809','Color','white')
+    xlabel('amplitude','Color','white')
+    hold on 
+    xline(Meadian,'Color','red','LineWidth',2)
+    % text (Meadian,'Color','red','FontSize',20,'Position',[7.5 100])
+    text('Color','red','FontSize',20,'Position',[Meadian 100],'String',num2str(Meadian))
+end
+%% seprate global and local base on threshold 
+globSpinForEachRef = cell(2,size(mostSpinForEachCh,2));
+LocSpinForEachRef = cell(2,size(mostSpinForEachCh,2));
+for k=1:size(mostSpinForEachCh,2)
+    globalspin =[];
+    globPeaks = [];
+    locspin=[];
+    locPeaks =[];
+load (['real_peaks_120809_' num2str(mostSpinForEachCh(1,k)) '.mat'])
+load  (['thal_spindles_120809_ch' num2str(mostSpinForEachCh(1,k)) '.mat'])
+
+TH = 0.76;
+MEaN = MEAN{k} ;
+for i=1:size(MEaN,2)
+    if MEaN(1,i) > TH
+        globalspin(i,:) = thal_spindles(i,:);
+        globPeaks(:,i) = real_peaks(:,i);
+    else
+        locspin(i,:) = thal_spindles(i,:);
+        locPeaks(:,i) = real_peaks(:,i);
+    end 
+end
+% Find rows with all zero values
+locsrowsToDelete = all(locspin == 0, 2);
+locscolomnToDelete = all(locPeaks==0,1);
+% Remove rows with all zero values
+locspin(locsrowsToDelete, :) = [];
+% locPeaks(locscolomnToDelete,:) = [];
+locPeaks(:,locscolomnToDelete) = [];
+
+globrowsToDelete = all(globalspin == 0, 2);
+globcolomnToDelete = all(globPeaks == 0, 1);
+globalspin(globrowsToDelete, :) = [];
+globPeaks(:,globcolomnToDelete) = [];
+
+globSpinForEachRef{1,k} = globalspin;
+globSpinForEachRef{2,k} = globPeaks;
+LocSpinForEachRef{1,k} = locspin;
+LocSpinForEachRef{2,k} = locPeaks;
+end 
+% save spindles base on global and local 
+sepratedSpindles120809.referencChannelForEachChannel = mostSpinForEachCh;
+
+sepratedSpindles120809.referencChannel = mostSpinCh;
+sepratedSpindles120809.localSPindles = LocSpinForEachRef;
+sepratedSpindles120809.globalSPindles = globSpinForEachRef;
+% sepratedSpindles120809.LocalPeaks = locPeaks;
+% sepratedSpindles120809.globalPeaks = globPeaks;
+save sepratedSpindles120809 sepratedSpindles120809
+%% save figures
+% Get the path to the directory where you want to save the figures
+save_path = 'D:/daniel/Mouse12-120809/SpindlesInf';
+
+% Get a list of all open figures
+fig_list = findobj('Type', 'figure');
+
+% Save each figure to the specified path
+for i = 1:length(fig_list)
+    fig = fig_list(i);
+    saveas(fig, fullfile(save_path, sprintf('figure_%d.png', i)));
+        saveas(fig, fullfile(save_path, sprintf('figure_%d.fig', i)));
+end
