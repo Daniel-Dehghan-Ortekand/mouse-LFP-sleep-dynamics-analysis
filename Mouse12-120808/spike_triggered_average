@@ -1,0 +1,129 @@
+function [sta, t_axis] = spike_triggered_average(lfp, spikes, fs)
+% =========================================================================
+% FUNCTION: spike_triggered_average
+% =========================================================================
+% DESCRIPTION:
+% Calculates the Spike-Triggered Average (STA) of an LFP signal time-locked 
+% to action potentials (spikes). Extracts a window around each spike, 
+% averages the snippets, and plots the resulting waveforms.
+%
+% INPUTS:
+%   - lfp: 1D vector of the LFP signal (1 x N or N x 1).
+%   - spikes: 2D binary matrix (num_channels x N) where 1 indicates a spike.
+%   - fs: (Optional) Sampling frequency in Hz. Defaults to 1250.
+%
+% OUTPUTS:
+%   - sta: Matrix of the averaged waveforms (num_channels x window_length).
+%   - t_axis: Time axis relative to the spike (in seconds).
+% =========================================================================
+
+if nargin < 3
+    fs = 1250; % Default sampling frequency
+end
+
+num_channels = size(spikes, 1);
+win_samples = 50; % Window size: +/- 50 samples around the spike
+win_length = 2 * win_samples + 1;
+
+% Initialize STA with the correct window size (NOT the length of the LFP)
+sta = zeros(num_channels, win_length);
+
+for channel = 1:num_channels
+    % Get the spike times for the current channel
+    spike_times_channel = find(spikes(channel, :));
+    num_spikes = length(spike_times_channel);
+    
+    if num_spikes == 0
+        continue; % Skip if no spikes on this channel
+    end
+
+    % Filter out spikes too close to the edges to avoid boundary issues
+    valid_spikes = spike_times_channel(spike_times_channel > win_samples & ...
+                                       spike_times_channel <= length(lfp) - win_samples);
+    num_valid_spikes = length(valid_spikes);
+    
+    if num_valid_spikes == 0
+        continue; % Skip if no valid spikes remain after edge-trimming
+    end
+
+    % Loop over the valid spike times
+    for i = 1:num_valid_spikes
+        spike_idx = valid_spikes(i);
+        
+        % Calculate the exact time window around the spike
+        t_window = (spike_idx - win_samples) : (spike_idx + win_samples);
+        
+        % Accumulate the LFP snippets
+        sta(channel, :) = sta(channel, :) + lfp(t_window);
+    end
+
+    % Normalize the spike triggered average by the number of valid spikes
+    sta(channel, :) = sta(channel, :) / num_valid_spikes;
+end
+
+% Calculate the relative time axis (e.g., -0.04s to +0.04s)
+t_axis = (-win_samples : win_samples) / fs;
+
+% Plot the spike triggered average
+figure;
+hold on;
+colors = lines(num_channels); % Automatically assigns distinct colors
+for channel = 1:num_channels
+    plot(t_axis, sta(channel, :), 'Color', colors(channel,:), 'LineWidth', 1.5);
+end
+hold off;
+
+xlabel('Time relative to spike (s)');
+ylabel('Spike-Triggered Average (STA)');
+title('Spike-Triggered Average of LFP');
+
+% Dynamically generate legend based on the number of channels
+legend_labels = arrayfun(@(x) sprintf('Channel %d', x), 1:num_channels, 'UniformOutput', false);
+legend(legend_labels, 'Location', 'best');
+
+end
+
+function sta = spike_triggered_average(lfp, spikes)
+
+fs = 1250;
+num_channels = size(spikes, 1);
+
+% Initialize the spike triggered average
+sta = zeros(num_channels, length(lfp));
+
+for channel = 1:num_channels
+    % Get the spike times for the current channel
+    spike_times_channel = find(spikes(channel, :));
+
+    % Loop over the spike times for the current channel
+    for spike = spike_times_channel
+        % Calculate the time window around the spike
+        t_window = (spike - 50:spike + 50);
+
+        % Clip the time window to be within the range of the LFP signal
+        t_window = max(1, t_window);
+        t_window = min(length(lfp), t_window);
+
+        % Compute the average of the LFP in the time window
+        sta(channel, :) = sta(channel, :) + lfp(t_window);
+    end
+
+    % Normalize the spike triggered average
+    sta(channel, :) = sta(channel, :) / length(spike_times_channel);
+end
+
+% Calculate the time axis
+t = (1:length(lfp)) / fs;
+
+% Plot the spike triggered average
+figure;
+hold on;
+for channel = 1:num_channels
+    plot(t, sta(channel, :));
+end
+hold off;
+xlabel('Time (s)');
+ylabel('Spike Triggered Average');
+legend('Channel 1', 'Channel 2', 'Channel 3', 'Channel 4', 'Channel 5', 'Channel 6', 'Channel 7');
+title('Spike Triggered Average');
+end
