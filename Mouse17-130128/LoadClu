@@ -1,0 +1,25 @@
+%% Loading cluster assignments from a .clu file
+% This function loads cluster assignments from a .clu file. The first
+% value in the file specifies the number of clusters, while the remaining
+% values contain the cluster assignment for each detected spike.
+%
+% The function reads the cluster assignments and determines the actual
+% number of clusters from the maximum cluster ID. It returns both the
+% cluster assignment vector and the number of detected clusters.
+
+% [Clu, nClusters] = LoadClu(FileName)
+%
+% A simple matlab function to load a .clu file
+
+function [Clu, nClusters] = LoadClu(FileName);
+
+Fp = fopen(FileName, 'r');
+
+if Fp==-1
+    error(['Could not open file ' FileName]);
+end
+
+nClusters = fscanf(Fp, '%d', 1);
+Clu = fscanf(Fp, '%d');
+nClusters = max(Clu);
+fclose(Fp);
