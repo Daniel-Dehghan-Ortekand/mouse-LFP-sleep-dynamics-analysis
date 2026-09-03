@@ -1,0 +1,65 @@
+%% Visualizing global and local spindles with neuronal firing activity
+% This script loads the separated global and local spindle events together
+% with NREM spike trains, filtered thalamic EEG, and spindle-triggered
+% neuronal firing-rate data.
+%
+% The signal from the main reference channel is plotted across the
+% recording, and the onset and offset of local and global spindle events
+% are marked separately on the signal. Selected neuronal spike trains are
+% then overlaid with the spindle-related signal to visualize neuronal
+% activity during spindle events.
+%
+% The script further calculates the NREM firing rate of a selected cell and
+% compares its firing rates during global and local spindles using a paired
+% t-test. The mean firing rates for both spindle types are also calculated
+% for comparison.
+
+clc 
+clear 
+close all 
+%%
+% load SWS_episode_120807.mat
+load sepratedSpindles120807.mat
+load SpikesSWS120807.mat
+load thal_ch_norm_filtered_120807.mat
+load FiringrateSpindles120807.mat
+%%
+ref = sepratedSpindles120807.referencChannel  ;
+start  = 1;
+stop = 9151264;
+fs=1250;
+
+t = (1:length(thal_ch_norm_filtered(ref,:)*fs));
+figure 
+refsignal = thal_ch_norm_filtered(ref,:)*fs;
+plot (t,zscore(refsignal),'LineWidth',3,'Color','k')
+hold on 
+% loc = find(sepratedSpindles120807.localSPindles(:,1)< stop, 1, 'last' );
+% glob = find(sepratedSpindles120807.globalSPindles(:,1)< stop, 1, 'last' );
+cell = [39 36 35 28 27 21 19 16 14 11 10 7 6 4];
+for i=1:size(sepratedSpindles120807.localSPindles,1)%length(loc)
+    plot(round(sepratedSpindles120807.localSPindles(i,1)*fs),thal_ch_norm_filtered(ref,round(sepratedSpindles120807.localSPindles(i,1)*fs)),'Color','r','Marker','o','MarkerSize',5,'MarkerFaceColor','auto')
+    plot(round(sepratedSpindles120807.localSPindles(i,3)*fs),thal_ch_norm_filtered(ref,round(sepratedSpindles120807.localSPindles(i,1)*fs)),'Color','r','Marker','diamond','MarkerSize',5','MarkerFaceColor','auto')
+%     for j=cell
+%     plot(round(sepratedSpindles120807.localSPindles(i,1)*fs):round(sepratedSpindles120807.localSPindles(i,3)*fs),(FRspindles120807.NeatedSpikes(j,round(sepratedSpindles120807.localSPindles(i,1)*fs):round(sepratedSpindles120807.localSPindles(i,3)*fs))-j),'LineWidth',3,'Color','r')
+%     end
+end
+for i=1:size(sepratedSpindles120807.globalSPindles,1)%length(glob)
+    plot(round(sepratedSpindles120807.globalSPindles(i,1)*fs),thal_ch_norm_filtered(ref,round(sepratedSpindles120807.globalSPindles(i,1)*fs)),'Color','b','Marker','o','MarkerSize',5,'MarkerFaceColor','auto')
+    plot(round(sepratedSpindles120807.globalSPindles(i,3)*fs),thal_ch_norm_filtered(ref,round(sepratedSpindles120807.globalSPindles(i,1)*fs)),'Color','b','Marker','diamond','MarkerSize',5,'MarkerFaceColor','auto')
+%     for j=cell
+%             plot(round(sepratedSpindles120807.globalSPindles(i,1)*fs):round(sepratedSpindles120807.globalSPindles(i,3)*fs),(FRspindles120807.NeatedSpikes(j,round(sepratedSpindles120807.globalSPindles(i,1)*fs):round(sepratedSpindles120807.globalSPindles(i,3)*fs))-j),'LineWidth',3,'Color','b')
+%     end 
+end
+for i=cell
+    plot(t,(FRspindles120807.NeatedSpikes(i,:)-i),'LineWidth',3,'Color','r')
+    plot(t,(FRspindles120807.NeatedSpikes(i,:)-i),'LineWidth',3,'Color','b')
+end
+
+fr = (length(find(FRspindles120807.NeatedSpikes(36,:)==1))/length(spikes_sws(36,:)))*fs
+[h , p] = ttest(FRspindles120807.GlobalIndi(36,:),FRspindles120807.LocalIndi(36,:))
+meanGlob = mean(FRspindles120807.GlobalIndi(36,:))
+meanLoc = mean (FRspindles120807.LocalIndi(36,:))
+hold off
+ylim([-40 5])
+
