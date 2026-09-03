@@ -1,0 +1,83 @@
+%% Converting spike times to NREM binary spike trains
+% This script loads the spike-time matrix for all recorded cells from the
+% Mouse12-120808 experiment and defines the predefined NREM/SWS episodes.
+%
+% The NREM/SWS intervals are converted into a logical sample index based
+% on the 1250 Hz EEG sampling frequency. Each spike time is then mapped to
+% the nearest sample of the complete EEG time vector and represented as a
+% binary spike train.
+%
+% The spike trains are restricted to the NREM/SWS periods, producing a
+% matrix in which each row represents one cell and each column represents
+% an EEG sample during NREM. The resulting NREM spike-train matrix is
+% saved as a MAT file for subsequent neuronal activity analysis.
+
+clear 
+close all
+
+% load Mouse12-120806.spikes.cellinfo.mat
+load    SpikesTimesAllCells.mat
+%SWS times Episode 
+SwsTime = [456.47	586.1
+603.88	1130.3
+1177.1	1474.8
+1544.1	1699.9
+1873.4	2232.2
+2257.8	2611.7
+2738.1	2912.5
+2942.6	3017.3
+3047.2	3223.6
+3223.6	3562
+5208.9	5529.9
+5546	5653.3
+5668.8	5752.4
+5782.8	5921.8
+6006.6	6482.3
+6524.1	6651.7
+10087	10497
+10529	10806
+10848	11058
+11110	11263
+11396	11714
+11753	12098
+12126	12146
+12146	12305
+12542	13220
+13290	13425
+13680	14227
+14256	14538
+16305	16642
+16684	16865
+16887	16969
+17007	17148
+17322	17457
+17484	17577
+];
+
+
+fs = 1250;]]></w:t></w:r></w:p><w:p><w:pPr><w:sectPr/></w:pPr></w:p><w:p><w:pPr><w:pStyle w:val="code"/></w:pPr><w:r><w:t><![CDATA[
+% main code 
+ChCell = size(SpikesTimesAllCells ,2);
+SwsEpisodeNum = size(SwsTime,1);
+
+mf = matfile("thal_allchanel_Mouse12_120808.mat");
+all_size = size(mf, "thal_allchanel_Mouse12_120806_new", 1);
+all_time = (0:all_size-1)/fs;
+
+SWS_ind = false(1, all_size);
+for i=1:SwsEpisodeNum
+    start_sample = round(SwsTime(i,1)*fs);
+    stop_sample = round(SwsTime(i,2)*fs);
+    SWS_ind(start_sample:stop_sample) = 1;
+end
+
+spikes_sws = false(ChCell, sum(SWS_ind));
+for i=1:ChCell
+    ind = nearestpoint(SpikesTimesAllCells(:,i), all_time);
+    s = false(1, all_size);
+    s(ind) = 1;
+
+    spikes_sws(i, :) = s(SWS_ind);
+
+end
+save SpikesSWS.mat spikes_sws
