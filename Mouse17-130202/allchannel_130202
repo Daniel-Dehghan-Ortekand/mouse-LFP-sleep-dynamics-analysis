@@ -1,0 +1,86 @@
+%% Loading raw EEG data and extracting NREM episodes
+% This script loads the session information and raw multichannel EEG
+% recording from the Mouse17-130202 experiment and determines the number
+% of recorded channels and sampling frequency.
+%
+% The complete EEG recording is loaded from the .eeg file, transposed, and
+% converted to double precision for subsequent processing. The resulting
+% multichannel EEG data are saved as a MAT file for further analysis.
+%
+% Predefined NREM/SWS time intervals are used to create a logical index
+% corresponding to all NREM episodes. The EEG samples within these
+% intervals are extracted across all channels and saved separately,
+% together with the corresponding NREM/SWS episode time intervals, for
+% subsequent sleep spindle analysis.
+
+clear 
+clc
+close all
+changeCurrentFolder('D:\daniel\Mouse17-130202')
+%% read the .EEG file and save all channel
+
+load Mouse17-130202.sessionInfo.mat
+nChannels = sessionInfo.nChannels;
+fs=1250;
+
+thal_allchanel_Mouse17_130202_new = bz_LoadBinary('Mouse17-130202.eeg','nChannels',nChannels,'frequency',fs);
+
+save thal_allchanel_Mouse17-130202 -v7.3
+OriginalData = thal_allchanel_Mouse17_130202_new;
+%% creat NREM EPISOD
+
+ch_number= nChannels;
+OriginalData=transpose(OriginalData);
+OriginalData=double(OriginalData);
+
+SwsTime = [1237	1655
+1661	1766
+1978	2135
+2150	2223
+2384	2453
+2534	2714
+2902	3333
+3896	4065
+4135	4291
+4345	4434
+4725	4795
+4814	4893
+6752	7079
+7146	7404
+10682	11333
+11402	11837
+11908	12002
+12244	12751
+12766	12990
+13049	13172
+13310	13703
+13788	13918
+13947	14212
+14212	14278
+14575	14836
+14936	15303
+15351	15478
+17761	18046
+18078	18175
+18369	18787
+18898	19221
+19227	19308
+19471	19776
+20116	20632
+20824	21127];
+
+SWSpacket_num = size(SwsTime,1);
+
+
+SWS_ind = false(1, length(OriginalData));
+for i=1:SWSpacket_num
+%     start_sample = round(sws(i,1)*fs);
+%     stop_sample = round(sws(i,2)*fs);
+    start_time = round(SwsTime(i,1)*fs);
+    stop_time = round(SwsTime(i,2)*fs);
+    SWS_ind(start_time:stop_time) = 1;
+end
+SWS_episode = OriginalData(:,SWS_ind);
+
+save SWS_episode_130202.mat  SWS_episode -v7.3
+save Sws_Time_130202.mat    SwsTime
