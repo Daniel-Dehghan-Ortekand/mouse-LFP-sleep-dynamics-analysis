@@ -1,0 +1,19 @@
+%% Calculating row-wise sums of a data matrix
+% This script calculates the sum of each row of the input data matrix.
+% The resulting sums are stored in a column vector, where each element
+% corresponds to the sum of one row of the data matrix.
+%
+% The calculated row sums are then displayed in the MATLAB command window.
+
+% Initialize an array to store the column sums.
+  column_sums = zeros(1251, 1);
+
+  % Sum the columns of the data array.
+  for i = 1:1251
+    column_sums(i) = sum(data( i ,:));
+  end
+
+  % Print the column sums.
+  disp('Column sums:');
+  disp(column_sums);
+end
